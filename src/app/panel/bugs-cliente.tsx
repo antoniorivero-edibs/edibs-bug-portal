@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { TABLA_WRAP, TABLA, THEAD, TH, TD, TR, BTN_SECUNDARIO, CHIP } from "./ui";
 
 type Adjunto = { nombre: string; url: string; tipo: "imagen" | "video" };
 
@@ -27,15 +28,26 @@ function EstadoBadge({ estado }: { estado: string }) {
   const cerrado = estado === "cerrado";
   return (
     <span
-      className={
-        cerrado
-          ? "rounded-full bg-purple-100 px-2 py-0.5 text-xs font-medium text-purple-700"
-          : "rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-700"
-      }
+      className={`${CHIP} ${cerrado ? "bg-purple-100 text-purple-700" : "bg-green-100 text-green-700"}`}
     >
+      <span className={`h-1.5 w-1.5 rounded-full ${cerrado ? "bg-purple-500" : "bg-green-500"}`} />
       {estado}
     </span>
   );
+}
+
+// Chip de estado de una fase de IA (con enlace al comentario si existe).
+function ChipIA({ label, done, url, iaOn }: { label: string; done: boolean; url: string | null; iaOn: boolean }) {
+  if (url) {
+    return (
+      <a href={url} target="_blank" className={`${CHIP} bg-[var(--color-surface-strong)] text-[var(--color-navy)] hover:bg-[var(--color-action)] hover:text-white`}>
+        {label} ↗
+      </a>
+    );
+  }
+  if (done) return <span className={`${CHIP} bg-green-100 text-green-700`}>{label} ✓</span>;
+  if (iaOn) return <span className={`${CHIP} bg-amber-100 text-amber-700`}>{label} ·</span>;
+  return <span className={`${CHIP} bg-[var(--color-surface-soft)] text-[var(--color-texto-muted)]`}>{label} off</span>;
 }
 
 function fechaHora(iso: string): string {
@@ -49,83 +61,60 @@ function fechaHora(iso: string): string {
 export default function BugsCliente({ bugs, iaOn }: { bugs: BugPanel[]; iaOn: boolean }) {
   const [detalle, setDetalle] = useState<BugPanel | null>(null);
 
-  const th = "px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-white/80";
-  const td = "px-3 py-2.5 align-middle";
-  const iaTxt = (ok: boolean) => (ok ? "✓" : iaOn ? "pendiente" : "off");
-
   if (bugs.length === 0) {
-    return <p className="text-sm text-[var(--color-texto-muted)]">Aún no hay bugs reportados.</p>;
+    return (
+      <div className={`${TABLA_WRAP} p-10 text-center text-sm text-[var(--color-texto-muted)]`}>
+        Aún no hay bugs reportados.
+      </div>
+    );
   }
 
   return (
-    <div className="overflow-x-auto rounded-[var(--radius-card)] border border-[var(--color-borde)] shadow-[var(--edibs-shadow)]">
-      <table className="w-full border-collapse text-sm">
-        <thead className="bg-[var(--color-navy-deep)]">
+    <div className={TABLA_WRAP}>
+      <table className={TABLA}>
+        <thead className={THEAD}>
           <tr>
-            <th className={th}>Estado</th>
-            <th className={th}>Producto</th>
-            <th className={th}>Título</th>
-            <th className={th}>Reporta</th>
-            <th className={th}>Fecha</th>
-            <th className={th}>Slack</th>
-            <th className={th}>IA</th>
-            <th className={th}>Issue</th>
-            <th className={th}></th>
+            <th className={TH}>Estado</th>
+            <th className={TH}>Producto</th>
+            <th className={TH}>Título</th>
+            <th className={TH}>Reporta</th>
+            <th className={TH}>Fecha</th>
+            <th className={TH}>Slack</th>
+            <th className={TH}>Análisis IA</th>
+            <th className={TH}></th>
           </tr>
         </thead>
         <tbody>
           {bugs.map((b) => (
-            <tr
-              key={`${b.repo}#${b.issue_number}`}
-              className="border-t border-[var(--color-borde)] bg-white hover:bg-[var(--color-surface-soft)]"
-            >
-              <td className={td}>
+            <tr key={`${b.repo}#${b.issue_number}`} className={TR}>
+              <td className={TD}>
                 <EstadoBadge estado={b.estado} />
               </td>
-              <td className={`${td} font-mono text-xs`}>{b.repo}</td>
-              <td className={`${td} max-w-xs`}>
-                <span className="line-clamp-2 text-[var(--color-texto)]">{b.titulo}</span>
+              <td className={`${TD} font-mono text-xs text-[var(--color-texto-muted)]`}>{b.repo}</td>
+              <td className={`${TD} max-w-xs`}>
+                <span className="line-clamp-2 font-medium text-[var(--color-navy)]">{b.titulo}</span>
               </td>
-              <td className={`${td} text-xs text-[var(--color-texto-muted)]`}>{b.reporter_email}</td>
-              <td className={`${td} whitespace-nowrap text-xs text-[var(--color-texto-muted)]`}>
+              <td className={`${TD} text-xs text-[var(--color-texto-muted)]`}>{b.reporter_email}</td>
+              <td className={`${TD} whitespace-nowrap text-xs text-[var(--color-texto-muted)]`}>
                 {b.creado_en.slice(0, 10)}
               </td>
-              <td className={`${td} whitespace-nowrap text-xs`}>
+              <td className={`${TD} whitespace-nowrap`}>
                 {b.slack_permalink ? (
-                  <a href={b.slack_permalink} target="_blank" className="text-[var(--color-action)] hover:underline">
-                    enviado ↗
+                  <a href={b.slack_permalink} target="_blank" className={`${CHIP} bg-[var(--color-surface-strong)] text-[var(--color-navy)] hover:bg-[var(--color-action)] hover:text-white`}>
+                    Slack ↗
                   </a>
                 ) : (
-                  <span className="text-[var(--color-texto-muted)]">—</span>
+                  <span className={`${CHIP} bg-[var(--color-surface-soft)] text-[var(--color-texto-muted)]`}>—</span>
                 )}
               </td>
-              <td className={`${td} whitespace-nowrap text-xs`}>
-                {b.ia_triaje_url ? (
-                  <a href={b.ia_triaje_url} target="_blank" className="text-[var(--color-action)] hover:underline">
-                    triaje ↗
-                  </a>
-                ) : (
-                  <span className="text-[var(--color-texto-muted)]">triaje {iaTxt(b.ia_triaje)}</span>
-                )}
-                {" · "}
-                {b.ia_investigacion_url ? (
-                  <a href={b.ia_investigacion_url} target="_blank" className="text-[var(--color-action)] hover:underline">
-                    inv. ↗
-                  </a>
-                ) : (
-                  <span className="text-[var(--color-texto-muted)]">inv. {iaTxt(b.ia_investigacion)}</span>
-                )}
+              <td className={TD}>
+                <div className="flex flex-wrap gap-1">
+                  <ChipIA label="Triaje" done={b.ia_triaje} url={b.ia_triaje_url} iaOn={iaOn} />
+                  <ChipIA label="Investigación" done={b.ia_investigacion} url={b.ia_investigacion_url} iaOn={iaOn} />
+                </div>
               </td>
-              <td className={`${td} whitespace-nowrap`}>
-                <a href={b.issue_url} target="_blank" className="text-[var(--color-action)] hover:underline">
-                  #{b.issue_number} ↗
-                </a>
-              </td>
-              <td className={`${td} whitespace-nowrap text-right`}>
-                <button
-                  onClick={() => setDetalle(b)}
-                  className="rounded-[var(--radius-pill)] border border-[var(--color-borde)] px-3 py-1 text-xs font-medium text-[var(--color-navy)] hover:border-[var(--color-action)] hover:bg-white"
-                >
+              <td className={`${TD} whitespace-nowrap text-right`}>
+                <button onClick={() => setDetalle(b)} className={BTN_SECUNDARIO}>
                   Ver todo
                 </button>
               </td>
@@ -142,104 +131,89 @@ export default function BugsCliente({ bugs, iaOn }: { bugs: BugPanel[]; iaOn: bo
 function DetalleBug({ bug, onCerrar }: { bug: BugPanel; onCerrar: () => void }) {
   const imagenes = bug.adjuntos.filter((a) => a.tipo === "imagen");
   const videos = bug.adjuntos.filter((a) => a.tipo === "video");
+
   const Dato = ({ k, children }: { k: string; children: React.ReactNode }) => (
-    <div className="flex gap-2 text-sm">
+    <div className="flex gap-3 text-sm">
       <span className="w-28 shrink-0 text-[var(--color-texto-muted)]">{k}</span>
       <span className="min-w-0 break-words text-[var(--color-texto)]">{children}</span>
     </div>
   );
+  const Enlace = ({ href, children }: { href: string; children: React.ReactNode }) => (
+    <a
+      href={href}
+      target="_blank"
+      className="rounded-[var(--radius-pill)] bg-[var(--color-surface-strong)] px-3 py-1 text-sm font-medium text-[var(--color-navy)] transition-colors hover:bg-[var(--color-action)] hover:text-white"
+    >
+      {children}
+    </a>
+  );
 
   return (
-    <div
-      onClick={onCerrar}
-      className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/40 p-4"
-    >
-      <div
-        onClick={(e) => e.stopPropagation()}
-        className="my-8 w-full max-w-2xl rounded-[var(--radius-card)] bg-white p-6 shadow-[var(--edibs-shadow)]"
-      >
-        <div className="flex items-start justify-between gap-3">
+    <div onClick={onCerrar} className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/40 p-4">
+      <div onClick={(e) => e.stopPropagation()} className="my-8 w-full max-w-2xl rounded-[var(--radius-card)] bg-white shadow-[var(--edibs-shadow)]">
+        {/* Cabecera navy */}
+        <div className="flex items-start justify-between gap-3 rounded-t-[var(--radius-card)] bg-[var(--color-navy-deep)] px-6 py-4">
           <div>
             <div className="flex items-center gap-2">
               <EstadoBadge estado={bug.estado} />
-              <span className="font-mono text-xs text-[var(--color-texto-muted)]">{bug.repo}</span>
+              <span className="font-mono text-xs text-white/60">{bug.repo}</span>
             </div>
-            <h3 className="mt-2 text-lg font-bold text-[var(--color-navy)]">{bug.titulo}</h3>
+            <h3 className="mt-2 text-lg font-bold text-white">{bug.titulo}</h3>
           </div>
-          <button
-            onClick={onCerrar}
-            className="shrink-0 rounded-full border border-[var(--color-borde)] px-2 text-[var(--color-texto-muted)] hover:text-[var(--color-navy)]"
-            aria-label="Cerrar"
-          >
+          <button onClick={onCerrar} className="shrink-0 rounded-full px-2 text-white/70 hover:text-white" aria-label="Cerrar">
             ✕
           </button>
         </div>
 
-        <div className="mt-4 space-y-1.5">
-          <Dato k="Reporta">{bug.reporter_email}</Dato>
-          <Dato k="Fecha y hora">{fechaHora(bug.creado_en)}</Dato>
-          <Dato k="Origen">{bug.url_origen || "—"}</Dato>
-          <Dato k="Navegador">{bug.navegador || "—"}</Dato>
-        </div>
+        <div className="p-6">
+          <div className="space-y-1.5">
+            <Dato k="Reporta">{bug.reporter_email}</Dato>
+            <Dato k="Fecha y hora">{fechaHora(bug.creado_en)}</Dato>
+            <Dato k="Origen">{bug.url_origen || "—"}</Dato>
+            <Dato k="Navegador">{bug.navegador || "—"}</Dato>
+          </div>
 
-        <h4 className="mt-5 text-sm font-semibold text-[var(--color-navy)]">Descripción</h4>
-        <p className="mt-1 whitespace-pre-wrap text-sm text-[var(--color-texto-body)]">
-          {bug.descripcion || "—"}
-        </p>
+          <h4 className="mt-6 text-sm font-semibold text-[var(--color-navy)]">Descripción</h4>
+          <p className="mt-1 whitespace-pre-wrap rounded-[var(--radius-sm)] bg-[var(--color-surface-soft)] p-3 text-sm text-[var(--color-texto-body)]">
+            {bug.descripcion || "—"}
+          </p>
 
-        {imagenes.length > 0 && (
-          <>
-            <h4 className="mt-5 text-sm font-semibold text-[var(--color-navy)]">Imágenes</h4>
-            <div className="mt-2 grid grid-cols-2 gap-2">
-              {imagenes.map((a) => (
-                <a key={a.url} href={a.url} target="_blank">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={a.url}
-                    alt={a.nombre}
-                    className="max-h-48 w-full rounded-[var(--radius-sm)] border border-[var(--color-borde)] object-cover"
-                  />
-                </a>
-              ))}
-            </div>
-          </>
-        )}
-
-        {videos.length > 0 && (
-          <>
-            <h4 className="mt-5 text-sm font-semibold text-[var(--color-navy)]">Vídeos</h4>
-            <ul className="mt-1 space-y-1 text-sm">
-              {videos.map((a) => (
-                <li key={a.url}>
-                  <a href={a.url} target="_blank" className="text-[var(--color-action)] underline">
-                    {a.nombre}
+          {imagenes.length > 0 && (
+            <>
+              <h4 className="mt-6 text-sm font-semibold text-[var(--color-navy)]">Imágenes</h4>
+              <div className="mt-2 grid grid-cols-2 gap-2">
+                {imagenes.map((a) => (
+                  <a key={a.url} href={a.url} target="_blank">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={a.url} alt={a.nombre} className="max-h-48 w-full rounded-[var(--radius-sm)] border border-[var(--color-borde)] object-cover" />
                   </a>
-                </li>
-              ))}
-            </ul>
-          </>
-        )}
+                ))}
+              </div>
+            </>
+          )}
 
-        <h4 className="mt-5 text-sm font-semibold text-[var(--color-navy)]">Enlaces</h4>
-        <div className="mt-1 flex flex-wrap gap-2 text-sm">
-          <a href={bug.issue_url} target="_blank" className="rounded-[var(--radius-pill)] bg-[var(--color-surface-strong)] px-3 py-1 font-medium text-[var(--color-navy)] hover:bg-[var(--color-action)] hover:text-white">
-            Issue #{bug.issue_number} ↗
-          </a>
-          {bug.slack_permalink && (
-            <a href={bug.slack_permalink} target="_blank" className="rounded-[var(--radius-pill)] bg-[var(--color-surface-strong)] px-3 py-1 font-medium text-[var(--color-navy)] hover:bg-[var(--color-action)] hover:text-white">
-              Mensaje de Slack ↗
-            </a>
+          {videos.length > 0 && (
+            <>
+              <h4 className="mt-6 text-sm font-semibold text-[var(--color-navy)]">Vídeos</h4>
+              <ul className="mt-1 space-y-1 text-sm">
+                {videos.map((a) => (
+                  <li key={a.url}>
+                    <a href={a.url} target="_blank" className="text-[var(--color-action)] underline">
+                      {a.nombre}
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            </>
           )}
-          {bug.ia_triaje_url && (
-            <a href={bug.ia_triaje_url} target="_blank" className="rounded-[var(--radius-pill)] bg-[var(--color-surface-strong)] px-3 py-1 font-medium text-[var(--color-navy)] hover:bg-[var(--color-action)] hover:text-white">
-              Comentario triaje IA ↗
-            </a>
-          )}
-          {bug.ia_investigacion_url && (
-            <a href={bug.ia_investigacion_url} target="_blank" className="rounded-[var(--radius-pill)] bg-[var(--color-surface-strong)] px-3 py-1 font-medium text-[var(--color-navy)] hover:bg-[var(--color-action)] hover:text-white">
-              Comentario investigación IA ↗
-            </a>
-          )}
+
+          <h4 className="mt-6 text-sm font-semibold text-[var(--color-navy)]">Enlaces</h4>
+          <div className="mt-2 flex flex-wrap gap-2">
+            <Enlace href={bug.issue_url}>Issue #{bug.issue_number} ↗</Enlace>
+            {bug.slack_permalink && <Enlace href={bug.slack_permalink}>Mensaje de Slack ↗</Enlace>}
+            {bug.ia_triaje_url && <Enlace href={bug.ia_triaje_url}>Comentario triaje IA ↗</Enlace>}
+            {bug.ia_investigacion_url && <Enlace href={bug.ia_investigacion_url}>Comentario investigación IA ↗</Enlace>}
+          </div>
         </div>
       </div>
     </div>

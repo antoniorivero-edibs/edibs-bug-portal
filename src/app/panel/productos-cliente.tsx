@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import { TABLA_WRAP, TABLA, THEAD, TH, TD, TR, BTN_PRIMARIO, BTN_SECUNDARIO, INPUT, SECCION } from "./ui";
 
 export type ProductoInicial = {
   repo: string;
@@ -17,7 +18,6 @@ type Config = Record<string, { alias: string; descripcion: string }>;
 export default function ProductosCliente({ inicial }: { inicial: ProductoInicial[] }) {
   const router = useRouter();
 
-  // Orden inicial: visibles primero por orden; luego el resto por repo.
   const ordenInicialActivos = useMemo(
     () =>
       inicial
@@ -43,11 +43,9 @@ export default function ProductosCliente({ inicial }: { inicial: ProductoInicial
   const [guardando, setGuardando] = useState(false);
 
   const dirty = JSON.stringify({ orden: activos, config }) !== snapshotInicial;
-
   const todos = inicial.map((p) => p.repo);
   const inactivos = todos.filter((r) => !activos.includes(r)).sort((a, b) => a.localeCompare(b));
 
-  // Aviso al salir con cambios sin guardar.
   useEffect(() => {
     if (!dirty) return;
     const h = (e: BeforeUnloadEvent) => {
@@ -58,25 +56,18 @@ export default function ProductosCliente({ inicial }: { inicial: ProductoInicial
     return () => window.removeEventListener("beforeunload", h);
   }, [dirty]);
 
-  function mostrar(repo: string) {
-    setActivos((a) => [...a, repo]);
-  }
-  function ocultar(repo: string) {
-    setActivos((a) => a.filter((r) => r !== repo));
-  }
-  function setAlias(repo: string, alias: string) {
+  const mostrar = (repo: string) => setActivos((a) => [...a, repo]);
+  const ocultar = (repo: string) => setActivos((a) => a.filter((r) => r !== repo));
+  const setAlias = (repo: string, alias: string) =>
     setConfig((c) => ({ ...c, [repo]: { ...c[repo], alias } }));
-  }
-  function setDescripcion(repo: string, descripcion: string) {
+  const setDescripcion = (repo: string, descripcion: string) =>
     setConfig((c) => ({ ...c, [repo]: { ...c[repo], descripcion } }));
-  }
 
   function soltarSobre(target: string) {
     if (!drag || drag === target) return;
     setActivos((a) => {
       const sin = a.filter((r) => r !== drag);
-      const idx = sin.indexOf(target);
-      sin.splice(idx, 0, drag);
+      sin.splice(sin.indexOf(target), 0, drag);
       return sin;
     });
     setDrag(null);
@@ -115,100 +106,79 @@ export default function ProductosCliente({ inicial }: { inicial: ProductoInicial
     }
   }
 
-  const th = "px-3 py-2 text-left text-xs font-semibold text-[var(--color-texto-muted)]";
-  const td = "px-3 py-2 align-middle";
-  const inputCls =
-    "w-full rounded-[var(--radius-sm)] border border-[var(--color-borde)] px-2 py-1 text-sm outline-none focus:border-[var(--color-action)]";
-
   return (
     <div>
       {/* Barra de guardado */}
-      <div className="mb-4 flex items-center justify-between rounded-[var(--radius-card)] border border-[var(--color-borde)] bg-white px-4 py-3">
-        <p className="text-sm text-[var(--color-texto-muted)]">
-          Arrastra <span className="font-mono">⠿</span> para ordenar los activos. Descripción con el
-          botón <em>Editar</em>. {dirty ? (
-            <span className="font-medium text-amber-600">· Tienes cambios sin guardar</span>
+      <div className="mb-5 flex flex-wrap items-center justify-between gap-3 rounded-[var(--radius-card)] border border-[var(--color-borde)] bg-white px-4 py-3 shadow-[var(--edibs-shadow)]">
+        <div className="flex items-center gap-2 text-sm text-[var(--color-texto-muted)]">
+          {dirty ? (
+            <span className="inline-flex items-center gap-1.5 font-medium text-amber-600">
+              <span className="h-2 w-2 rounded-full bg-amber-500" /> Cambios sin guardar
+            </span>
           ) : (
-            <span>· Todo guardado</span>
+            <span className="inline-flex items-center gap-1.5">
+              <span className="h-2 w-2 rounded-full bg-green-500" /> Todo guardado
+            </span>
           )}
-        </p>
-        <button
-          onClick={guardar}
-          disabled={!dirty || guardando}
-          className="rounded-[var(--radius-pill)] bg-[var(--color-action)] px-5 py-2 text-sm font-semibold text-white transition-colors hover:bg-[var(--color-action-hover)] disabled:opacity-50"
-        >
-          {guardando ? "Guardando..." : "Guardar cambios"}
+          <span className="hidden sm:inline">· arrastra ⠿ para ordenar · descripción con “Editar”</span>
+        </div>
+        <button onClick={guardar} disabled={!dirty || guardando} className={BTN_PRIMARIO}>
+          {guardando ? "Guardando…" : "Guardar cambios"}
         </button>
       </div>
 
       {/* Activos */}
-      <h3 className="mb-2 text-sm font-semibold text-[var(--color-navy)]">
-        Activos en el portal ({activos.length})
+      <h3 className={`mb-2 ${SECCION}`}>
+        Activos en el portal <span className="text-[var(--color-texto-muted)]">({activos.length})</span>
       </h3>
-      <div className="overflow-x-auto rounded-[var(--radius-card)] border border-[var(--color-borde)]">
-        <table className="w-full border-collapse text-sm">
-          <thead className="bg-[var(--color-surface-soft)]">
+      <div className={TABLA_WRAP}>
+        <table className={TABLA}>
+          <thead className={THEAD}>
             <tr>
-              <th className={th} style={{ width: 32 }}></th>
-              <th className={th}>Repo</th>
-              <th className={th}>Alias (nombre visible)</th>
-              <th className={th}>Descripción</th>
-              <th className={th} style={{ width: 80 }}></th>
+              <th className={TH} style={{ width: 40 }}></th>
+              <th className={TH}>Repo</th>
+              <th className={TH}>Alias (nombre visible)</th>
+              <th className={TH}>Descripción</th>
+              <th className={TH} style={{ width: 90 }}></th>
             </tr>
           </thead>
           <tbody>
             {activos.length === 0 && (
               <tr>
-                <td className="px-3 py-4 text-center text-[var(--color-texto-muted)]" colSpan={5}>
-                  Ningún producto visible. Activa uno desde la tabla de abajo.
+                <td className="px-4 py-6 text-center text-[var(--color-texto-muted)]" colSpan={5}>
+                  Ningún producto visible. Actívalo desde “Otros repos”.
                 </td>
               </tr>
             )}
             {activos.map((repo) => (
-              <tr
-                key={repo}
-                onDragOver={(e) => e.preventDefault()}
-                onDrop={() => soltarSobre(repo)}
-                className="border-t border-[var(--color-borde)] bg-white"
-              >
-                <td className={td}>
+              <tr key={repo} onDragOver={(e) => e.preventDefault()} onDrop={() => soltarSobre(repo)} className={TR}>
+                <td className={`${TD} text-center`}>
                   <span
                     draggable
                     onDragStart={() => setDrag(repo)}
                     onDragEnd={() => setDrag(null)}
-                    className="cursor-grab select-none text-[var(--color-texto-muted)]"
+                    className="cursor-grab select-none text-lg text-[var(--color-texto-muted)] hover:text-[var(--color-navy)]"
                     title="Arrastra para reordenar"
                   >
                     ⠿
                   </span>
                 </td>
-                <td className={`${td} font-mono text-xs`}>{repo}</td>
-                <td className={td}>
-                  <input
-                    value={config[repo]?.alias ?? ""}
-                    onChange={(e) => setAlias(repo, e.target.value)}
-                    placeholder="Alias"
-                    className={inputCls}
-                  />
+                <td className={`${TD} font-mono text-xs text-[var(--color-texto-muted)]`}>{repo}</td>
+                <td className={TD}>
+                  <input value={config[repo]?.alias ?? ""} onChange={(e) => setAlias(repo, e.target.value)} placeholder="Alias" className={INPUT} />
                 </td>
-                <td className={`${td} max-w-xs`}>
+                <td className={`${TD} max-w-xs`}>
                   <div className="flex items-center gap-2">
                     <span className="truncate text-xs text-[var(--color-texto-muted)]">
-                      {config[repo]?.descripcion || "—"}
+                      {config[repo]?.descripcion || "— sin descripción —"}
                     </span>
-                    <button
-                      onClick={() => setEditando(repo)}
-                      className="shrink-0 rounded-[var(--radius-sm)] border border-[var(--color-borde)] px-2 py-0.5 text-xs hover:border-[var(--color-action)] hover:text-[var(--color-navy)]"
-                    >
+                    <button onClick={() => setEditando(repo)} className={`${BTN_SECUNDARIO} shrink-0`}>
                       Editar
                     </button>
                   </div>
                 </td>
-                <td className={`${td} text-right`}>
-                  <button
-                    onClick={() => ocultar(repo)}
-                    className="text-xs text-[var(--color-texto-muted)] hover:text-red-600"
-                  >
+                <td className={`${TD} text-right`}>
+                  <button onClick={() => ocultar(repo)} className="text-xs font-medium text-[var(--color-texto-muted)] hover:text-red-600">
                     Ocultar
                   </button>
                 </td>
@@ -219,48 +189,40 @@ export default function ProductosCliente({ inicial }: { inicial: ProductoInicial
       </div>
 
       {/* Otros repos */}
-      <h3 className="mb-2 mt-6 text-sm font-semibold text-[var(--color-texto-muted)]">
-        Otros repos disponibles ({inactivos.length})
+      <h3 className={`mb-2 mt-8 ${SECCION} text-[var(--color-texto-muted)]`}>
+        Otros repos disponibles <span>({inactivos.length})</span>
       </h3>
-      <div className="overflow-x-auto rounded-[var(--radius-card)] border border-[var(--color-borde)]">
-        <table className="w-full border-collapse text-sm">
-          <thead className="bg-[var(--color-surface-soft)]">
+      <div className={TABLA_WRAP}>
+        <table className={TABLA}>
+          <thead className={THEAD}>
             <tr>
-              <th className={th}>Repo</th>
-              <th className={th}>Alias</th>
-              <th className={th}>Descripción</th>
-              <th className={th} style={{ width: 90 }}></th>
+              <th className={TH}>Repo</th>
+              <th className={TH}>Alias</th>
+              <th className={TH}>Descripción</th>
+              <th className={TH} style={{ width: 100 }}></th>
             </tr>
           </thead>
           <tbody>
             {inactivos.map((repo) => (
-              <tr key={repo} className="border-t border-[var(--color-borde)] bg-white">
-                <td className={`${td} font-mono text-xs`}>{repo}</td>
-                <td className={td}>
-                  <input
-                    value={config[repo]?.alias ?? ""}
-                    onChange={(e) => setAlias(repo, e.target.value)}
-                    placeholder="Alias"
-                    className={inputCls}
-                  />
+              <tr key={repo} className={TR}>
+                <td className={`${TD} font-mono text-xs text-[var(--color-texto-muted)]`}>{repo}</td>
+                <td className={TD}>
+                  <input value={config[repo]?.alias ?? ""} onChange={(e) => setAlias(repo, e.target.value)} placeholder="Alias" className={INPUT} />
                 </td>
-                <td className={`${td} max-w-xs`}>
+                <td className={`${TD} max-w-xs`}>
                   <div className="flex items-center gap-2">
                     <span className="truncate text-xs text-[var(--color-texto-muted)]">
-                      {config[repo]?.descripcion || "—"}
+                      {config[repo]?.descripcion || "— sin descripción —"}
                     </span>
-                    <button
-                      onClick={() => setEditando(repo)}
-                      className="shrink-0 rounded-[var(--radius-sm)] border border-[var(--color-borde)] px-2 py-0.5 text-xs hover:border-[var(--color-action)] hover:text-[var(--color-navy)]"
-                    >
+                    <button onClick={() => setEditando(repo)} className={`${BTN_SECUNDARIO} shrink-0`}>
                       Editar
                     </button>
                   </div>
                 </td>
-                <td className={`${td} text-right`}>
+                <td className={`${TD} text-right`}>
                   <button
                     onClick={() => mostrar(repo)}
-                    className="rounded-[var(--radius-pill)] bg-[var(--color-surface-strong)] px-3 py-1 text-xs font-medium text-[var(--color-navy)] hover:bg-[var(--color-action)] hover:text-white"
+                    className="rounded-[var(--radius-pill)] bg-[var(--color-surface-strong)] px-3 py-1 text-xs font-semibold text-[var(--color-navy)] transition-colors hover:bg-[var(--color-action)] hover:text-white"
                   >
                     Mostrar
                   </button>
@@ -271,10 +233,10 @@ export default function ProductosCliente({ inicial }: { inicial: ProductoInicial
         </table>
       </div>
 
-      {/* Modal de descripción */}
+      {/* Modal descripción */}
       {editando && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <div className="w-full max-w-lg rounded-[var(--radius-card)] bg-white p-6 shadow-[var(--edibs-shadow)]">
+        <div onClick={() => setEditando(null)} className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div onClick={(e) => e.stopPropagation()} className="w-full max-w-lg rounded-[var(--radius-card)] bg-white p-6 shadow-[var(--edibs-shadow)]">
             <h4 className="text-sm font-semibold text-[var(--color-navy)]">
               Descripción · <span className="font-mono text-xs">{editando}</span>
             </h4>
@@ -288,11 +250,8 @@ export default function ProductosCliente({ inicial }: { inicial: ProductoInicial
               rows={4}
               className="mt-3 w-full rounded-[var(--radius-sm)] border border-[var(--color-borde)] px-3 py-2 text-sm outline-none focus:border-[var(--color-action)]"
             />
-            <div className="mt-4 flex justify-end gap-2">
-              <button
-                onClick={() => setEditando(null)}
-                className="rounded-[var(--radius-pill)] border border-[var(--color-borde)] px-4 py-1.5 text-sm text-[var(--color-texto-muted)] hover:text-[var(--color-navy)]"
-              >
+            <div className="mt-4 flex justify-end">
+              <button onClick={() => setEditando(null)} className={BTN_PRIMARIO}>
                 Hecho
               </button>
             </div>
