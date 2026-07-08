@@ -61,7 +61,9 @@ function enlaceDM(slackId: string): string {
 function Reporter({ bug }: { bug: BugPanel }) {
   return (
     <div className="text-xs">
-      <div className="font-medium text-[var(--color-texto)]">{bug.reporter_nombre || bug.reporter_email}</div>
+      {bug.reporter_nombre && (
+        <div className="font-medium text-[var(--color-texto)]">{bug.reporter_nombre}</div>
+      )}
       <div className="text-[var(--color-texto-muted)]">{bug.reporter_email}</div>
       {bug.reporter_slack_id && (
         <a href={enlaceDM(bug.reporter_slack_id)} target="_blank" className="text-[var(--color-action)] hover:underline">
@@ -103,6 +105,7 @@ export default function BugsCliente({ bugs, iaOn }: { bugs: BugPanel[]; iaOn: bo
             <th className={TH}>Fecha</th>
             <th className={TH}>Slack</th>
             <th className={TH}>Análisis IA</th>
+            <th className={TH}>Issue</th>
             <th className={TH}></th>
           </tr>
         </thead>
@@ -136,6 +139,15 @@ export default function BugsCliente({ bugs, iaOn }: { bugs: BugPanel[]; iaOn: bo
                   <ChipIA label="Triaje" done={b.ia_triaje} url={b.ia_triaje_url} iaOn={iaOn} />
                   <ChipIA label="Investigación" done={b.ia_investigacion} url={b.ia_investigacion_url} iaOn={iaOn} />
                 </div>
+              </td>
+              <td className={`${TD} whitespace-nowrap`}>
+                <a
+                  href={b.issue_url}
+                  target="_blank"
+                  className={`${CHIP} bg-[var(--color-surface-strong)] text-[var(--color-navy)] hover:bg-[var(--color-action)] hover:text-white`}
+                >
+                  #{b.issue_number} ↗
+                </a>
               </td>
               <td className={`${TD} whitespace-nowrap text-right`}>
                 <button onClick={() => setDetalle(b)} className={BTN_SECUNDARIO}>
@@ -173,8 +185,8 @@ function DetalleBug({ bug, onCerrar }: { bug: BugPanel; onCerrar: () => void }) 
   );
 
   return (
-    <div onClick={onCerrar} className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/40 p-4">
-      <div onClick={(e) => e.stopPropagation()} className="my-8 w-full max-w-2xl rounded-[var(--radius-card)] bg-white shadow-[var(--edibs-shadow)]">
+    <div onClick={onCerrar} className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+      <div onClick={(e) => e.stopPropagation()} className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-[var(--radius-card)] bg-white shadow-[var(--edibs-shadow)]">
         {/* Cabecera navy */}
         <div className="flex items-start justify-between gap-3 rounded-t-[var(--radius-card)] bg-[var(--color-navy-deep)] px-6 py-4">
           <div>

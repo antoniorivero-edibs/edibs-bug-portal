@@ -154,6 +154,12 @@ export default function ProductosCliente({ inicial }: { inicial: ProductoInicial
             {activos.map((repo) => (
               <tr
                 key={repo}
+                draggable
+                onDragStart={() => setDrag(repo)}
+                onDragEnd={() => {
+                  setDrag(null);
+                  setDragOver(null);
+                }}
                 onDragOver={(e) => {
                   e.preventDefault();
                   if (drag && drag !== repo) setDragOver(repo);
@@ -163,40 +169,44 @@ export default function ProductosCliente({ inicial }: { inicial: ProductoInicial
                   soltarSobre(repo);
                   setDragOver(null);
                 }}
-                className={`${TR} ${drag === repo ? "opacity-40" : ""} ${
+                className={`${TR} cursor-grab active:cursor-grabbing ${drag === repo ? "opacity-40" : ""} ${
                   dragOver === repo ? "shadow-[inset_0_2px_0_0_var(--color-action)]" : ""
                 }`}
               >
-                <td className={`${TD} text-center`}>
-                  <span
-                    draggable
-                    onDragStart={() => setDrag(repo)}
-                    onDragEnd={() => {
-                      setDrag(null);
-                      setDragOver(null);
-                    }}
-                    className="cursor-grab select-none text-lg text-[var(--color-texto-muted)] transition-colors hover:text-[var(--color-action)] active:cursor-grabbing"
-                    title="Arrastra para reordenar"
-                  >
-                    ⠿
-                  </span>
-                </td>
+                <td className={`${TD} text-center text-lg text-[var(--color-texto-muted)]`}>⠿</td>
                 <td className={`${TD} font-mono text-xs text-[var(--color-texto-muted)]`}>{repo}</td>
                 <td className={TD}>
-                  <input value={config[repo]?.alias ?? ""} onChange={(e) => setAlias(repo, e.target.value)} placeholder="Alias" className={INPUT} />
+                  <input
+                    value={config[repo]?.alias ?? ""}
+                    onChange={(e) => setAlias(repo, e.target.value)}
+                    onMouseDown={(e) => e.stopPropagation()}
+                    draggable={false}
+                    placeholder="Alias"
+                    className={INPUT}
+                  />
                 </td>
                 <td className={`${TD} max-w-xs`}>
                   <div className="flex items-center gap-2">
                     <span className="truncate text-xs text-[var(--color-texto-muted)]">
                       {config[repo]?.descripcion || "— sin descripción —"}
                     </span>
-                    <button onClick={() => setEditando(repo)} className={`${BTN_SECUNDARIO} shrink-0`}>
+                    <button
+                      onClick={() => setEditando(repo)}
+                      onMouseDown={(e) => e.stopPropagation()}
+                      draggable={false}
+                      className={`${BTN_SECUNDARIO} shrink-0`}
+                    >
                       Editar
                     </button>
                   </div>
                 </td>
                 <td className={`${TD} text-right`}>
-                  <button onClick={() => ocultar(repo)} className="text-xs font-medium text-[var(--color-texto-muted)] hover:text-red-600">
+                  <button
+                    onClick={() => ocultar(repo)}
+                    onMouseDown={(e) => e.stopPropagation()}
+                    draggable={false}
+                    className="text-xs font-medium text-[var(--color-texto-muted)] hover:text-red-600"
+                  >
                     Ocultar
                   </button>
                 </td>
