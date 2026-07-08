@@ -5,7 +5,15 @@ export type Producto = {
   descripcion: string | null;
   // IDs de Slack de los devs a mencionar en el aviso de ese producto.
   devsSlack: string[];
+  // Usuarios de GitHub a los que se asigna el issue del producto.
+  asignados: string[];
 };
+
+// Un dev del equipo: su ID de Slack (para menciones) y su usuario de GitHub (para asignar).
+type Dev = { slack: string; github: string };
+
+const ANTONIO: Dev = { slack: process.env.SLACK_DEV_ANTONIO || "U0BAU7N7ZSA", github: "antoniorivero-edibs" };
+const ANGEL: Dev = { slack: process.env.SLACK_DEV_ANGEL || "U0BC1RE5NUT", github: "adominguez-edibs" };
 
 // Overrides opcionales de alias por repo. Por defecto el alias sale del nombre del repo.
 // Añadir aquí solo cuando el nombre del repo no sea suficientemente claro.
@@ -13,16 +21,12 @@ const ALIAS_OVERRIDES: Record<string, string> = {
   // "metriks": "Metriks",
 };
 
-// Mapa de devs por repo (IDs de Slack). Si un repo no está, se usa DEVS_POR_DEFECTO.
-// Los IDs vienen de docs/plan.md: Antonio y Ángel.
-const DEV_ANTONIO = process.env.SLACK_DEV_ANTONIO || "U0BAU7N7ZSA";
-const DEV_ANGEL = process.env.SLACK_DEV_ANGEL || "U0BC1RE5NUT";
-
-const DEVS_POR_REPO: Record<string, string[]> = {
-  // "metriks": [DEV_ANGEL],
+// Devs por repo. Si un repo no está, se usa DEVS_POR_DEFECTO (todo el equipo).
+const DEVS_POR_REPO: Record<string, Dev[]> = {
+  // "metriks": [ANGEL],
 };
 
-const DEVS_POR_DEFECTO: string[] = [DEV_ANTONIO, DEV_ANGEL];
+const DEVS_POR_DEFECTO: Dev[] = [ANTONIO, ANGEL];
 
 // Deriva un alias legible a partir del nombre del repo si no hay override.
 // Ej: "edibs-crm-onboarding" -> "Edibs Crm Onboarding".
@@ -34,6 +38,16 @@ export function aliasDeRepo(repo: string): string {
     .trim();
 }
 
-export function devsDeRepo(repo: string): string[] {
+function devsDeRepo(repo: string): Dev[] {
   return DEVS_POR_REPO[repo] ?? DEVS_POR_DEFECTO;
+}
+
+// IDs de Slack de los devs del producto (para mencionar en el aviso).
+export function slacksDeRepo(repo: string): string[] {
+  return devsDeRepo(repo).map((d) => d.slack);
+}
+
+// Usuarios de GitHub del producto (para asignar el issue).
+export function asignadosDeRepo(repo: string): string[] {
+  return devsDeRepo(repo).map((d) => d.github);
 }

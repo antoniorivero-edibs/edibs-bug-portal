@@ -3,7 +3,7 @@ import "server-only";
 import { Octokit } from "@octokit/rest";
 import { createAppAuth } from "@octokit/auth-app";
 import { env } from "@/lib/env";
-import { aliasDeRepo, devsDeRepo, type Producto } from "@/lib/products";
+import { aliasDeRepo, slacksDeRepo, asignadosDeRepo, type Producto } from "@/lib/products";
 
 // Cliente Octokit autenticado como instalación de la GitHub App.
 // Con esto se listan repos y se crean issues sin usar tokens personales.
@@ -37,7 +37,8 @@ export async function listarProductos(): Promise<Producto[]> {
       repo: r.name,
       nombre: aliasDeRepo(r.name),
       descripcion: r.description ?? null,
-      devsSlack: devsDeRepo(r.name),
+      devsSlack: slacksDeRepo(r.name),
+      asignados: asignadosDeRepo(r.name),
     }))
     .sort((a, b) => a.nombre.localeCompare(b.nombre));
 }
@@ -52,6 +53,7 @@ export type NuevoIssue = {
   repo: string;
   titulo: string;
   cuerpo: string;
+  asignados?: string[];
 };
 
 export type IssueCreado = {
@@ -60,13 +62,15 @@ export type IssueCreado = {
 };
 
 // Crea el issue en el repo del producto vía la GitHub App.
-export async function crearIssue({ repo, titulo, cuerpo }: NuevoIssue): Promise<IssueCreado> {
+export async function crearIssue({ repo, titulo, cuerpo, asignados }: NuevoIssue): Promise<IssueCreado> {
   const octokit = octokitApp();
   const { data } = await octokit.rest.issues.create({
     owner: env.githubOrg(),
     repo,
     title: titulo,
     body: cuerpo,
+    // Si algún usuario no tiene acceso al repo, GitHub lo ignora sin fallar.
+    assignees: asignados,
   });
   return { numero: data.number, url: data.html_url };
 }

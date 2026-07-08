@@ -80,7 +80,7 @@ export async function POST(request: NextRequest) {
 
   let issue;
   try {
-    issue = await crearIssue({ repo, titulo, cuerpo });
+    issue = await crearIssue({ repo, titulo, cuerpo, asignados: producto.asignados });
   } catch (err) {
     console.error("Error creando issue:", err);
     return NextResponse.json({ error: "No se pudo crear el issue en GitHub." }, { status: 502 });

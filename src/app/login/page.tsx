@@ -38,7 +38,10 @@ function LoginContent() {
   return (
     <div className="mx-auto mt-8 max-w-sm">
       <div className="rounded-[var(--radius-card)] border border-[var(--color-borde)] bg-white p-8 shadow-[var(--edibs-shadow)]">
-        <Image src="/edibs-logo.png" alt="EDIBS" width={140} height={44} className="h-9 w-auto" />
+        {/* Logo blanco sobre bloque navy (el logo de marca solo existe en versión blanca transparente). */}
+        <div className="inline-flex rounded-[var(--radius-sm)] bg-[var(--color-navy-deep)] px-4 py-3">
+          <Image src="/edibs-logo-white.png" alt="EDIBS" width={120} height={34} className="h-8 w-auto" />
+        </div>
         <h1 className="mt-6 text-xl font-bold text-[var(--color-navy)]">Portal de bugs</h1>
         <p className="mt-1 text-sm text-[var(--color-texto-muted)]">
           Entra con tu cuenta de Google de EDIBS para reportar bugs.
