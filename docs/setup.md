@@ -10,8 +10,9 @@ Estado de la infraestructura y pasos que faltan para dejar el portal operativo.
 - **Vercel:** proyecto `edibs-bug-portal` (equipo EDIBS), conectado al repo de GitHub (deploy automático).
   - Producción: **https://edibs-bug-portal.vercel.app**
   - Variables ya cargadas: Supabase (URL, anon, service role), dominios permitidos, org y topic de GitHub, canal e IDs de Slack, `NEXT_PUBLIC_SITE_URL`.
-- **Login:** Google SSO (único método), restringido a `edibschool.com`, `nuclio.school`, `indexmediamarketing.com`.
+- **Login:** sin auth. El usuario pone nombre + correo (validado por dominio: `edibschool.com`, `nuclio.school`, `indexmediamarketing.com`) y entra. No se envía nada. **Nada que configurar.**
 - **Asignación:** los issues se asignan a `antoniorivero-edibs` y `adominguez-edibs` (editable en `src/lib/products.ts`).
+- **Nombres de producto:** el usuario ve un alias amigable, no el nombre del repo. Por defecto sale del nombre del repo en title case; para fijarlo a mano, edita `ALIAS_OVERRIDES` en `src/lib/products.ts` (ej: `"edibs-crm-onboarding": "CRM Onboarding"`).
 
 ## Datos útiles (ya conocidos)
 
@@ -25,22 +26,7 @@ Estado de la infraestructura y pasos que faltan para dejar el portal operativo.
 
 ## Pendiente (requiere accesos que no tengo)
 
-### 1. Google SSO (login)
-
-En **Google Cloud Console** (con una cuenta de EDIBS):
-
-1. Crea o elige un proyecto (p. ej. "EDIBS Bug Portal").
-2. **Pantalla de consentimiento OAuth**:
-   - Si los tres dominios están en el mismo Google Workspace: tipo **Interno**.
-   - Si no: tipo **Externo** (el portal ya bloquea dominios que no sean de EDIBS en el callback, así que da igual que Google deje autenticar a otros; el portal los rechaza).
-   - Rellena nombre de la app y correos de soporte.
-3. **Credenciales -> Crear credenciales -> ID de cliente de OAuth -> Aplicación web**.
-   - URI de redirección autorizado: `https://vktjjehjdpcliwxwjbzu.supabase.co/auth/v1/callback`
-4. Copia **Client ID** y **Client secret**.
-
-Con esas dos cadenas activo el proveedor Google en Supabase y empujo la config de Auth (Site URL + redirects + desactivar email). Alternativa manual: Supabase -> Authentication -> Providers -> Google -> pegar y guardar.
-
-### 2. GitHub App
+### 1. GitHub App
 
 En `https://github.com/organizations/EDIBS-SCHOOL/settings/apps` -> **New GitHub App**:
 
@@ -54,20 +40,18 @@ En `https://github.com/organizations/EDIBS-SCHOOL/settings/apps` -> **New GitHub
 
 Me pasas: App ID, Installation ID, el `.pem` y el webhook secret. Yo cargo las env en Vercel.
 
-### 3. Slack
+### 2. Slack (pendiente de permisos de admin, issue #13)
 
-En `https://api.slack.com/apps` -> **Create New App -> From scratch** (workspace de EDIBS):
+Hace falta un **bot token** con `chat:write` (un webhook no sirve: solo publica, no edita, y editar es lo que marca el bug como resuelto). Requiere admin del workspace. Petición al admin:
 
-- OAuth & Permissions -> Bot Token Scopes -> añade `chat:write`.
-- Install to Workspace -> copia el **Bot User OAuth Token** (`xoxb-...`).
-- En Slack, invita al bot al canal: `/invite @EDIBS Bug Portal` en `#bug`.
+> Crear una Slack app (From scratch) en el workspace de EDIBS con el scope de bot `chat:write`, instalarla e invitarla a `#bug`, y pasar el Bot User OAuth Token (`xoxb-...`).
 
-Me pasas el `xoxb-...`.
+Con el token me lo das y lo enciendo (`SLACK_BOT_TOKEN` en Vercel). El portal funciona sin Slack mientras tanto.
 
-### 4. Productos reportables
+### 3. Productos reportables
 
-Pon el topic `bug-portal` a cada repo que deba aparecer (p. ej. `metriks`). Esto lo puedo hacer yo con `gh` si me dices los repos.
+Pon el topic `bug-portal` a cada repo que deba aparecer (p. ej. `metriks`). Esto lo puedo hacer yo con `gh` si me dices los repos. Para un nombre más amigable que el del repo, edita `ALIAS_OVERRIDES` en `src/lib/products.ts`.
 
 ## Variables de entorno
 
-Referencia completa en `.env.example`. Las de Supabase y app ya están en Vercel; faltan Google, GitHub App y Slack (sale de los pasos de arriba).
+Referencia completa en `.env.example`. Las de Supabase y app ya están en Vercel; faltan GitHub App y Slack (salen de los pasos de arriba).

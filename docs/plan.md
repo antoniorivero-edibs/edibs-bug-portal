@@ -10,8 +10,8 @@ Al reportar: se crea un issue en el repo del producto (con quién reporta, email
 
 ## Decisiones cerradas
 
-- **Login:** **Google SSO** (Supabase Auth), único método de acceso. Restringido a los dominios `@edibschool.com`, `@nuclio.school` e `@indexmediamarketing.com` (el chequeo de dominio se hace en el callback tras el OAuth). Necesita un OAuth Client de Google Cloud (client id + secret) configurado en el proveedor Google de Supabase.
-- **Lista de productos:** dinámica pero curada, **por topic de GitHub**. El portal lista los repos de la org con el topic `bug-portal`. Añadir un producto = poner el topic al repo (cero cambios en el portal). Alias por defecto desde el nombre/descripción del repo, con mapa de overrides opcional.
+- **Login:** sin autenticación real, priorizando rapidez. El usuario pone **nombre + correo** (guardado en el navegador) y entra. Se valida que el correo sea de un dominio permitido (`@edibschool.com`, `@nuclio.school`, `@indexmediamarketing.com`), pero **no se envía nada ni se verifica el buzón**. Se asume el riesgo de que alguien use un correo ajeno. El nombre y correo se muestran en el issue y en el aviso de Slack para poder contactar a quien reporta.
+- **Lista de productos:** dinámica pero curada, **por topic de GitHub**. El portal lista los repos de la org con el topic `bug-portal`. Añadir un producto = poner el topic al repo (cero cambios en el portal). El nombre que ve el usuario es un **alias amigable**, no el nombre crudo del repo: por defecto se genera del nombre del repo (title case) y se puede fijar a mano en el mapa de overrides de `src/lib/products.ts`.
 - **Campos del form:** título, descripción, fotos/vídeos. La severidad y demás la pone el equipo al triar (etiquetas).
 - **Adjuntos:** hasta 5 archivos, 50 MB cada uno. Imágenes `png/jpg/webp/gif` (van incrustadas en el issue), vídeos `mp4/mov/webm` (van como enlace). Se suben a Supabase Storage.
 - **Slack:** canal `#bug`. Mención a los devs por producto (IDs de Slack: Antonio `U0BAU7N7ZSA`, Ángel `U0BC1RE5NUT`). Al cerrar el issue, el mensaje se actualiza a resuelto (no se borra, se marca).
