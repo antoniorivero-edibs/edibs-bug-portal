@@ -52,9 +52,12 @@ function ChipIA({ label, done, url, iaOn }: { label: string; done: boolean; url:
   return <span className={`${CHIP} bg-[var(--color-surface-soft)] text-[var(--color-texto-muted)]`}>{label} off</span>;
 }
 
-// Enlace para abrir el DM con el usuario en el Slack de EDIBS.
+// Enlace para abrir el DM con el usuario en el Slack de EDIBS (deep link con team).
 function enlaceDM(slackId: string): string {
-  return `https://slack.com/app_redirect?channel=${slackId}`;
+  const team = process.env.NEXT_PUBLIC_SLACK_TEAM_ID;
+  return team
+    ? `https://slack.com/app_redirect?team=${team}&channel=${slackId}`
+    : `https://slack.com/app_redirect?channel=${slackId}`;
 }
 
 // Muestra quién reporta: nombre, correo y enlace directo a su DM de Slack (si se conoce).

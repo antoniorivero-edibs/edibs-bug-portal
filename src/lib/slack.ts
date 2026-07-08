@@ -33,6 +33,8 @@ export type AvisoSlack = {
   producto: string;
   tituloIssue: string;
   urlIssue: string;
+  descripcion: string;
+  numAdjuntos: number;
   reporter: string;
   reporterEmail: string;
   reporterSlackId?: string | null; // si se resuelve por email, se menciona al reporter
@@ -50,29 +52,61 @@ export async function avisarNuevoBug(aviso: AvisoSlack): Promise<MensajeSlack> {
   const client = slack();
   const canal = env.slackBugChannel();
   const menciones = aviso.devsSlack.map((id) => `<@${id}>`).join(" ");
+  const quienReporta = aviso.reporterSlackId
+    ? `<@${aviso.reporterSlackId}>`
+    : `*${aviso.reporter}*`;
+  // Descripción recortada para el mensaje (el detalle completo está en el issue).
+  const desc = aviso.descripcion.trim();
+  const descCorta = desc.length > 600 ? `${desc.slice(0, 600)}…` : desc;
+
+  const blocks: unknown[] = [
+    {
+      type: "section",
+      text: { type: "mrkdwn", text: `:beetle: *Nuevo bug en ${aviso.producto}*` },
+    },
+    {
+      type: "section",
+      text: { type: "mrkdwn", text: `*${aviso.tituloIssue}*\n${descCorta || "_(sin descripción)_"}` },
+    },
+  ];
+
+  if (aviso.numAdjuntos > 0) {
+    blocks.push({
+      type: "context",
+      elements: [
+        { type: "mrkdwn", text: `:paperclip: ${aviso.numAdjuntos} adjunto(s) (en el issue)` },
+      ],
+    });
+  }
+
+  blocks.push(
+    {
+      type: "context",
+      elements: [
+        {
+          type: "mrkdwn",
+          // Quién reporta (mencionado si está en Slack) para poder escribirle por DM.
+          text: `:bust_in_silhouette: Reporta ${quienReporta} (${aviso.reporterEmail})${menciones ? `  ·  cc ${menciones}` : ""}`,
+        },
+      ],
+    },
+    {
+      type: "actions",
+      elements: [
+        {
+          type: "button",
+          text: { type: "plain_text", text: "Ver issue en GitHub", emoji: true },
+          url: aviso.urlIssue,
+        },
+      ],
+    }
+  );
 
   const res = await client.chat.postMessage({
     channel: canal,
-    text: `Nuevo bug en ${aviso.producto}: ${aviso.tituloIssue}`,
-    blocks: [
-      {
-        type: "section",
-        text: {
-          type: "mrkdwn",
-          text: `:beetle: *Nuevo bug en ${aviso.producto}*\n<${aviso.urlIssue}|${aviso.tituloIssue}>`,
-        },
-      },
-      {
-        type: "context",
-        elements: [
-          {
-            type: "mrkdwn",
-            // Se muestra quién reporta (mencionado si está en Slack) y su correo, para poder escribirle.
-            text: `Reportado por ${aviso.reporterSlackId ? `<@${aviso.reporterSlackId}>` : `*${aviso.reporter}*`} (${aviso.reporterEmail})${menciones ? ` · avisados: ${menciones}` : ""}`,
-          },
-        ],
-      },
-    ],
+    text: `Nuevo bug en ${aviso.producto}: ${aviso.tituloIssue} ${menciones}`,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    blocks: blocks as any,
   });
 
   if (!res.ok || !res.ts || !res.channel) {

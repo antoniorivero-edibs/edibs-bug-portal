@@ -104,6 +104,8 @@ export async function POST(request: NextRequest) {
       producto: producto.nombre,
       tituloIssue: titulo,
       urlIssue: issue.url,
+      descripcion,
+      numAdjuntos: adjuntos.length,
       reporter: reporter.nombre,
       reporterEmail: reporter.email,
       reporterSlackId: reporterSlack?.id ?? null,
