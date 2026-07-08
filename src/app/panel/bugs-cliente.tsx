@@ -11,6 +11,8 @@ export type BugPanel = {
   titulo: string;
   estado: string;
   reporter_email: string;
+  reporter_nombre: string | null;
+  reporter_slack_id: string | null;
   issue_url: string;
   descripcion: string | null;
   adjuntos: Adjunto[];
@@ -48,6 +50,26 @@ function ChipIA({ label, done, url, iaOn }: { label: string; done: boolean; url:
   if (done) return <span className={`${CHIP} bg-green-100 text-green-700`}>{label} ✓</span>;
   if (iaOn) return <span className={`${CHIP} bg-amber-100 text-amber-700`}>{label} ·</span>;
   return <span className={`${CHIP} bg-[var(--color-surface-soft)] text-[var(--color-texto-muted)]`}>{label} off</span>;
+}
+
+// Enlace para abrir el DM con el usuario en el Slack de EDIBS.
+function enlaceDM(slackId: string): string {
+  return `https://slack.com/app_redirect?channel=${slackId}`;
+}
+
+// Muestra quién reporta: nombre, correo y enlace directo a su DM de Slack (si se conoce).
+function Reporter({ bug }: { bug: BugPanel }) {
+  return (
+    <div className="text-xs">
+      <div className="font-medium text-[var(--color-texto)]">{bug.reporter_nombre || bug.reporter_email}</div>
+      <div className="text-[var(--color-texto-muted)]">{bug.reporter_email}</div>
+      {bug.reporter_slack_id && (
+        <a href={enlaceDM(bug.reporter_slack_id)} target="_blank" className="text-[var(--color-action)] hover:underline">
+          Escribir por Slack ↗
+        </a>
+      )}
+    </div>
+  );
 }
 
 function fechaHora(iso: string): string {
@@ -94,7 +116,9 @@ export default function BugsCliente({ bugs, iaOn }: { bugs: BugPanel[]; iaOn: bo
               <td className={`${TD} max-w-xs`}>
                 <span className="line-clamp-2 font-medium text-[var(--color-navy)]">{b.titulo}</span>
               </td>
-              <td className={`${TD} text-xs text-[var(--color-texto-muted)]`}>{b.reporter_email}</td>
+              <td className={TD}>
+                <Reporter bug={b} />
+              </td>
               <td className={`${TD} whitespace-nowrap text-xs text-[var(--color-texto-muted)]`}>
                 {b.creado_en.slice(0, 10)}
               </td>
@@ -167,7 +191,18 @@ function DetalleBug({ bug, onCerrar }: { bug: BugPanel; onCerrar: () => void }) 
 
         <div className="p-6">
           <div className="space-y-1.5">
-            <Dato k="Reporta">{bug.reporter_email}</Dato>
+            <Dato k="Reporta">
+              {bug.reporter_nombre ? `${bug.reporter_nombre} · ` : ""}
+              {bug.reporter_email}
+              {bug.reporter_slack_id && (
+                <>
+                  {" · "}
+                  <a href={enlaceDM(bug.reporter_slack_id)} target="_blank" className="text-[var(--color-action)] hover:underline">
+                    escribir por Slack ↗
+                  </a>
+                </>
+              )}
+            </Dato>
             <Dato k="Fecha y hora">{fechaHora(bug.creado_en)}</Dato>
             <Dato k="Origen">{bug.url_origen || "—"}</Dato>
             <Dato k="Navegador">{bug.navegador || "—"}</Dato>

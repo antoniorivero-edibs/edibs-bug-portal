@@ -39,6 +39,7 @@ export default function ProductosCliente({ inicial }: { inicial: ProductoInicial
   const [activos, setActivos] = useState<string[]>(ordenInicialActivos);
   const [config, setConfig] = useState<Config>(configInicial);
   const [drag, setDrag] = useState<string | null>(null);
+  const [dragOver, setDragOver] = useState<string | null>(null);
   const [editando, setEditando] = useState<string | null>(null);
   const [guardando, setGuardando] = useState(false);
 
@@ -151,13 +152,30 @@ export default function ProductosCliente({ inicial }: { inicial: ProductoInicial
               </tr>
             )}
             {activos.map((repo) => (
-              <tr key={repo} onDragOver={(e) => e.preventDefault()} onDrop={() => soltarSobre(repo)} className={TR}>
+              <tr
+                key={repo}
+                onDragOver={(e) => {
+                  e.preventDefault();
+                  if (drag && drag !== repo) setDragOver(repo);
+                }}
+                onDragLeave={() => setDragOver((d) => (d === repo ? null : d))}
+                onDrop={() => {
+                  soltarSobre(repo);
+                  setDragOver(null);
+                }}
+                className={`${TR} ${drag === repo ? "opacity-40" : ""} ${
+                  dragOver === repo ? "shadow-[inset_0_2px_0_0_var(--color-action)]" : ""
+                }`}
+              >
                 <td className={`${TD} text-center`}>
                   <span
                     draggable
                     onDragStart={() => setDrag(repo)}
-                    onDragEnd={() => setDrag(null)}
-                    className="cursor-grab select-none text-lg text-[var(--color-texto-muted)] hover:text-[var(--color-navy)]"
+                    onDragEnd={() => {
+                      setDrag(null);
+                      setDragOver(null);
+                    }}
+                    className="cursor-grab select-none text-lg text-[var(--color-texto-muted)] transition-colors hover:text-[var(--color-action)] active:cursor-grabbing"
                     title="Arrastra para reordenar"
                   >
                     ⠿

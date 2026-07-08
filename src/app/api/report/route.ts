@@ -93,11 +93,13 @@ export async function POST(request: NextRequest) {
     console.error("Error aplicando la label portal:", err);
   }
 
+  // Resolver el usuario de Slack del reporter (si Slack está configurado) para mencionarlo
+  // y guardar su ID (enlace a DM en el panel).
+  const reporterSlack = await buscarSlackPorEmail(reporter.email);
+
   // 7. Avisar en Slack. Si Slack falla no tiramos todo el reporte: el issue ya existe.
   let slack: { channel: string; ts: string; permalink: string | null } | null = null;
   try {
-    // Si Slack está configurado, intenta resolver al reporter por su correo para mencionarlo.
-    const reporterSlack = await buscarSlackPorEmail(reporter.email);
     slack = await avisarNuevoBug({
       producto: producto.nombre,
       tituloIssue: titulo,
@@ -120,6 +122,8 @@ export async function POST(request: NextRequest) {
       issue_url: issue.url,
       titulo,
       reporter_email: reporter.email,
+      reporter_nombre: reporter.nombre,
+      reporter_slack_id: reporterSlack?.id ?? null,
       descripcion,
       adjuntos,
       navegador,
