@@ -45,9 +45,22 @@ El código ya está (modelo `claude-sonnet-5`, permiso `contents: read` de la Ap
 
 Para activarlo: pásame una API key de Anthropic (`sk-ant-...`) y la cargo en Vercel. Modelo configurable con `ANTHROPIC_MODEL` (por defecto `claude-sonnet-5`; subir a `claude-opus-4-8` para casos difíciles).
 
-### 3. Productos reportables (opcional, cuando haya más)
+### 3. Panel de administración (`/panel`)
 
-Para añadir otro producto: ponle el topic `bug-portal` al repo y aparece solo. Para un nombre más amigable que el del repo, edita `ALIAS_OVERRIDES` en `src/lib/products.ts`.
+Los productos ya **no** se controlan por topic, sino desde la **tabla `productos`** de Supabase, gestionada desde `/panel` (login con GitHub, acceso solo a miembros de la org). El panel también lista todos los bugs de todos los repos.
+
+Para que el **login del panel** funcione, en la GitHub App (Settings de la App):
+1. **Client secrets → Generate a new client secret** → me lo pasas (`GITHUB_APP_CLIENT_SECRET`). El Client ID ya está.
+2. **Callback URL**: añade `https://edibs-bug-portal.vercel.app/api/panel/auth/callback`.
+3. **Organization permissions → Members: Read-only** (para comprobar que quien entra es de la org).
+4. **Repository permissions → Administration: Read and write** (para sincronizar la descripción del repo a GitHub).
+5. Aprueba la actualización de permisos en la instalación.
+
+Con el client secret me lo das y lo cargo (`GITHUB_APP_CLIENT_SECRET`). El resto de variables del panel ya están en Vercel.
+
+### 4. Productos reportables
+
+Se gestionan desde `/panel` (mostrar/ocultar, alias, descripción). Nada de topics ni código.
 
 ## Variables de entorno
 
