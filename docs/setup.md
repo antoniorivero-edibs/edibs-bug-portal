@@ -36,11 +36,14 @@ Hace falta un **bot token** con `chat:write` (un webhook no sirve: solo publica,
 
 Con el token me lo das y lo enciendo (`SLACK_BOT_TOKEN` en Vercel). El portal funciona sin Slack mientras tanto.
 
-### 2. IA (opcional, issue #9): análisis automático del bug
+### 2. IA (opcional, issues #9 y #10): triaje + investigación del repo
 
-El código ya está: al crear el issue, si hay `ANTHROPIC_API_KEY` en Vercel, Claude añade un comentario estructurado (resumen, pasos, esperado/real, área, severidad sugerida) conservando el texto original. Sin la clave, no se hace nada (el resto funciona igual).
+El código ya está (modelo `claude-sonnet-5`, permiso `contents: read` de la App concedido). Al crear el issue, si hay `ANTHROPIC_API_KEY`, Claude trabaja en **segundo plano** (no bloquea al que reporta) y publica **2 comentarios** por orden de importancia:
 
-Para activarlo: pásame una API key de Anthropic (`sk-ant-...`) y la cargo en Vercel. El modelo por defecto es `claude-opus-4-8`; se puede bajar a `claude-sonnet-5` (variable `ANTHROPIC_MODEL`) para abaratar.
+1. **Triaje** (rápido): resumen, qué ocurre, severidad sugerida y categoría; aplica las labels que decida (creándolas si faltan).
+2. **Investigación del código** (lee el repo): causa probable y ficheros/áreas candidatas con enlaces, para que un dev retome el issue en Claude Code con el grueso hecho.
+
+Para activarlo: pásame una API key de Anthropic (`sk-ant-...`) y la cargo en Vercel. Modelo configurable con `ANTHROPIC_MODEL` (por defecto `claude-sonnet-5`; subir a `claude-opus-4-8` para casos difíciles).
 
 ### 3. Productos reportables (opcional, cuando haya más)
 
