@@ -36,7 +36,13 @@ Hace falta un **bot token** con `chat:write` (un webhook no sirve: solo publica,
 
 Con el token me lo das y lo enciendo (`SLACK_BOT_TOKEN` en Vercel). El portal funciona sin Slack mientras tanto.
 
-### 2. Productos reportables (opcional, cuando haya más)
+### 2. IA (opcional, issue #9): análisis automático del bug
+
+El código ya está: al crear el issue, si hay `ANTHROPIC_API_KEY` en Vercel, Claude añade un comentario estructurado (resumen, pasos, esperado/real, área, severidad sugerida) conservando el texto original. Sin la clave, no se hace nada (el resto funciona igual).
+
+Para activarlo: pásame una API key de Anthropic (`sk-ant-...`) y la cargo en Vercel. El modelo por defecto es `claude-opus-4-8`; se puede bajar a `claude-sonnet-5` (variable `ANTHROPIC_MODEL`) para abaratar.
+
+### 3. Productos reportables (opcional, cuando haya más)
 
 Para añadir otro producto: ponle el topic `bug-portal` al repo y aparece solo. Para un nombre más amigable que el del repo, edita `ALIAS_OVERRIDES` en `src/lib/products.ts`.
 
