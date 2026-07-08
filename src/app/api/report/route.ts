@@ -1,8 +1,9 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { crearClienteAdmin } from "@/lib/supabase/admin";
 import { emailPermitido } from "@/lib/domains";
-import { esProductoValido, crearIssue } from "@/lib/github";
+import { esProductoValido, crearIssue, comentarIssue } from "@/lib/github";
 import { avisarNuevoBug, buscarSlackPorEmail } from "@/lib/slack";
+import { analizarBug } from "@/lib/ai";
 import {
   construirCuerpoIssue,
   tipoPorNombre,
@@ -81,7 +82,17 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "No se pudo crear el issue en GitHub." }, { status: 502 });
   }
 
-  // 6. Avisar en Slack. Si Slack falla no tiramos todo el reporte: el issue ya existe.
+  // 6. Análisis con IA (opcional): comentario estructurado en el issue. Si falla, se ignora.
+  try {
+    const analisis = await analizarBug(titulo, descripcion, producto.nombre);
+    if (analisis) {
+      await comentarIssue(repo, issue.numero, analisis);
+    }
+  } catch (err) {
+    console.error("Error añadiendo el análisis con IA:", err);
+  }
+
+  // 7. Avisar en Slack. Si Slack falla no tiramos todo el reporte: el issue ya existe.
   let slack: { channel: string; ts: string } | null = null;
   try {
     // Si Slack está configurado, intenta resolver al reporter por su correo para mencionarlo.

@@ -74,3 +74,14 @@ export async function crearIssue({ repo, titulo, cuerpo, asignados }: NuevoIssue
   });
   return { numero: data.number, url: data.html_url };
 }
+
+// Añade un comentario a un issue existente (usado por el análisis con IA).
+export async function comentarIssue(repo: string, numero: number, cuerpo: string): Promise<void> {
+  const octokit = octokitApp();
+  await octokit.rest.issues.createComment({
+    owner: env.githubOrg(),
+    repo,
+    issue_number: numero,
+    body: cuerpo,
+  });
+}
