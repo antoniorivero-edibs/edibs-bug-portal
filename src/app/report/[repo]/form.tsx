@@ -123,13 +123,17 @@ export default function FormularioReporte({
 
   if (estado === "ok") {
     return (
-      <div className="mt-6 rounded-lg border border-green-800/60 bg-green-950/30 p-4 text-sm">
-        <p className="font-medium text-green-200">Reporte enviado. ¡Gracias!</p>
-        <p className="mt-1 text-[var(--color-texto-suave)]">
+      <div className="mt-6 rounded-[var(--radius-card)] border border-green-300 bg-green-50 p-5 text-sm">
+        <p className="font-semibold text-green-800">Reporte enviado. ¡Gracias!</p>
+        <p className="mt-1 text-[var(--color-texto-muted)]">
           Se creó el issue en {nombreProducto} y se avisó en Slack.
         </p>
         {urlIssue && (
-          <a href={urlIssue} target="_blank" className="mt-2 inline-block text-[var(--color-acento)] underline">
+          <a
+            href={urlIssue}
+            target="_blank"
+            className="mt-2 inline-block font-medium text-[var(--color-action)] underline"
+          >
             Ver el issue en GitHub
           </a>
         )}
@@ -138,47 +142,59 @@ export default function FormularioReporte({
   }
 
   const ocupado = estado === "subiendo" || estado === "enviando";
+  const inputBase =
+    "w-full rounded-[var(--radius-sm)] border border-[var(--color-borde)] bg-white px-3 py-2 text-sm text-[var(--color-texto)] outline-none transition-colors focus:border-[var(--color-action)]";
 
   return (
     <form onSubmit={enviar} className="mt-6 space-y-4">
       <div>
-        <label className="mb-1 block text-sm font-medium">Título</label>
+        <label className="mb-1 block text-sm font-semibold text-[var(--color-navy)]">Título</label>
         <input
           value={titulo}
           onChange={(e) => setTitulo(e.target.value)}
           placeholder="Resumen corto del bug"
-          className="w-full rounded-lg border border-[var(--color-borde)] bg-[var(--color-superficie)] px-3 py-2 text-sm outline-none focus:border-[var(--color-acento)]"
+          className={inputBase}
         />
       </div>
 
       <div>
-        <label className="mb-1 block text-sm font-medium">Descripción</label>
+        <label className="mb-1 block text-sm font-semibold text-[var(--color-navy)]">Descripción</label>
         <textarea
           value={descripcion}
           onChange={(e) => setDescripcion(e.target.value)}
           rows={6}
           placeholder="Qué pasa, qué esperabas, pasos para reproducirlo..."
-          className="w-full rounded-lg border border-[var(--color-borde)] bg-[var(--color-superficie)] px-3 py-2 text-sm outline-none focus:border-[var(--color-acento)]"
+          className={inputBase}
         />
       </div>
 
       <div>
-        <label className="mb-1 block text-sm font-medium">
-          Adjuntos <span className="text-[var(--color-texto-suave)]">(opcional, máx {MAX_ADJUNTOS})</span>
+        <label className="mb-1 block text-sm font-semibold text-[var(--color-navy)]">
+          Adjuntos{" "}
+          <span className="font-normal text-[var(--color-texto-muted)]">
+            (opcional, máx {MAX_ADJUNTOS})
+          </span>
         </label>
         <input
           type="file"
           multiple
           accept="image/png,image/jpeg,image/webp,image/gif,video/mp4,video/quicktime,video/webm"
           onChange={onSeleccionArchivos}
-          className="block w-full text-sm text-[var(--color-texto-suave)] file:mr-3 file:rounded-lg file:border-0 file:bg-[var(--color-borde)] file:px-3 file:py-1.5 file:text-sm file:text-[var(--color-texto)]"
+          className="block w-full text-sm text-[var(--color-texto-muted)] file:mr-3 file:rounded-[var(--radius-pill)] file:border-0 file:bg-[var(--color-surface-strong)] file:px-4 file:py-1.5 file:text-sm file:font-medium file:text-[var(--color-navy)]"
         />
         {archivos.length > 0 && (
           <ul className="mt-2 space-y-1 text-sm">
             {archivos.map((f, i) => (
-              <li key={i} className="flex items-center justify-between rounded border border-[var(--color-borde)] px-2 py-1">
-                <span className="truncate">{f.name}</span>
-                <button type="button" onClick={() => quitarArchivo(i)} className="ml-2 text-[var(--color-texto-suave)] hover:text-red-400">
+              <li
+                key={i}
+                className="flex items-center justify-between rounded-[var(--radius-sm)] border border-[var(--color-borde)] bg-[var(--color-surface-soft)] px-3 py-1.5"
+              >
+                <span className="truncate text-[var(--color-texto-body)]">{f.name}</span>
+                <button
+                  type="button"
+                  onClick={() => quitarArchivo(i)}
+                  className="ml-2 text-[var(--color-texto-muted)] hover:text-red-600"
+                >
                   quitar
                 </button>
               </li>
@@ -187,14 +203,18 @@ export default function FormularioReporte({
         )}
       </div>
 
-      {error && <p className="text-sm text-red-400">{error}</p>}
+      {error && <p className="text-sm text-red-600">{error}</p>}
 
       <button
         type="submit"
         disabled={ocupado}
-        className="rounded-lg bg-[var(--color-acento)] px-4 py-2 text-sm font-medium text-white disabled:opacity-60"
+        className="rounded-[var(--radius-pill)] bg-[var(--color-action)] px-6 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-[var(--color-action-hover)] disabled:opacity-60"
       >
-        {estado === "subiendo" ? "Subiendo adjuntos..." : estado === "enviando" ? "Creando issue..." : "Reportar"}
+        {estado === "subiendo"
+          ? "Subiendo adjuntos..."
+          : estado === "enviando"
+            ? "Creando issue..."
+            : "Reportar"}
       </button>
     </form>
   );

@@ -1,26 +1,41 @@
 @import "tailwindcss";
 
+/* Tokens de marca EDIBS (calibrados contra edibschool.com). Tema claro. */
 :root {
-  --fondo: #0b0d12;
-  --superficie: #14171f;
-  --borde: #262b36;
-  --texto: #e6e8ec;
-  --texto-suave: #9aa1ad;
-  --acento: #4f8cff;
+  --edibs-navy: #002f6d;
+  --edibs-navy-deep: #001735;
+  --edibs-action: #4189ff;
+  --edibs-action-hover: #3b78f0;
+  --edibs-surface-soft: #f0f3ff;
+  --edibs-surface-strong: #e7ecff;
+  --edibs-white: #ffffff;
+  --edibs-border: #ebebeb;
+  --edibs-text: #00040a;
+  --edibs-text-body: #322a2a;
+  --edibs-text-muted: #5a6472;
+  --edibs-radius-pill: 999px;
+  --edibs-radius-card: 18px;
+  --edibs-radius-sm: 10px;
+  --edibs-shadow: 0 18px 40px -12px rgba(0, 15, 53, 0.18);
 }
 
 @theme inline {
-  --color-fondo: var(--fondo);
-  --color-superficie: var(--superficie);
-  --color-borde: var(--borde);
-  --color-texto: var(--texto);
-  --color-texto-suave: var(--texto-suave);
-  --color-acento: var(--acento);
+  --color-navy: var(--edibs-navy);
+  --color-navy-deep: var(--edibs-navy-deep);
+  --color-action: var(--edibs-action);
+  --color-action-hover: var(--edibs-action-hover);
+  --color-surface-soft: var(--edibs-surface-soft);
+  --color-surface-strong: var(--edibs-surface-strong);
+  --color-borde: var(--edibs-border);
+  --color-texto: var(--edibs-text);
+  --color-texto-body: var(--edibs-text-body);
+  --color-texto-muted: var(--edibs-text-muted);
+  --radius-card: var(--edibs-radius-card);
+  --radius-pill: var(--edibs-radius-pill);
 }
 
 html,
 body {
-  background: var(--fondo);
-  color: var(--texto);
-  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  background: var(--edibs-white);
+  color: var(--edibs-text);
 }

@@ -25,11 +25,16 @@ export default async function ReportPage({
 
   return (
     <div>
-      <Link href="/" className="text-sm text-[var(--color-texto-suave)] hover:text-[var(--color-texto)]">
+      <Link
+        href="/"
+        className="text-sm text-[var(--color-texto-muted)] transition-colors hover:text-[var(--color-navy)]"
+      >
         ← Volver
       </Link>
-      <h1 className="mt-3 text-xl font-semibold">Reportar bug · {producto.nombre}</h1>
-      <p className="mt-1 text-sm text-[var(--color-texto-suave)]">
+      <h1 className="mt-3 text-2xl font-bold text-[var(--color-navy)]">
+        Reportar bug · {producto.nombre}
+      </h1>
+      <p className="mt-1 text-sm text-[var(--color-texto-muted)]">
         Cuenta qué pasa y adjunta capturas o vídeos si ayudan.
       </p>
       <FormularioReporte repo={producto.repo} nombreProducto={producto.nombre} />

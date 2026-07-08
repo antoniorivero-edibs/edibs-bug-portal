@@ -22,7 +22,7 @@ export const env = {
   // Solo servidor.
   supabaseServiceRoleKey: () => requerida("SUPABASE_SERVICE_ROLE_KEY"),
   allowedEmailDomains: () =>
-    opcional("ALLOWED_EMAIL_DOMAINS", "edibschool.com,indexmediamarketing.com")
+    opcional("ALLOWED_EMAIL_DOMAINS", "edibschool.com,nuclio.school,indexmediamarketing.com")
       .split(",")
       .map((d) => d.trim().toLowerCase())
       .filter(Boolean),

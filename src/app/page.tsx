@@ -30,24 +30,22 @@ export default async function HomePage() {
     <div>
       <div className="mb-6 flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-semibold">Elige un producto</h1>
-          <p className="mt-1 text-sm text-[var(--color-texto-suave)]">
-            {user?.email}
-          </p>
+          <h1 className="text-2xl font-bold text-[var(--color-navy)]">Elige un producto</h1>
+          <p className="mt-1 text-sm text-[var(--color-texto-muted)]">{user?.email}</p>
         </div>
         <LogoutButton />
       </div>
 
       {error && (
-        <div className="rounded-lg border border-yellow-800/60 bg-yellow-950/30 p-4 text-sm text-yellow-200">
+        <div className="rounded-[var(--radius-card)] border border-amber-300 bg-amber-50 p-4 text-sm text-amber-800">
           {error}
         </div>
       )}
 
       {!error && productos.length === 0 && (
-        <div className="rounded-lg border border-[var(--color-borde)] bg-[var(--color-superficie)] p-4 text-sm text-[var(--color-texto-suave)]">
-          No hay productos con el topic <code>bug-portal</code> todavía. Pon el topic a un repo para
-          que aparezca aquí.
+        <div className="rounded-[var(--radius-card)] border border-[var(--color-borde)] bg-[var(--color-surface-soft)] p-4 text-sm text-[var(--color-texto-muted)]">
+          No hay productos con el topic <code className="font-semibold">bug-portal</code> todavía. Pon
+          el topic a un repo para que aparezca aquí.
         </div>
       )}
 
@@ -56,11 +54,11 @@ export default async function HomePage() {
           <li key={p.repo}>
             <Link
               href={`/report/${p.repo}`}
-              className="block rounded-lg border border-[var(--color-borde)] bg-[var(--color-superficie)] p-4 transition-colors hover:border-[var(--color-acento)]"
+              className="block rounded-[var(--radius-card)] border border-[var(--color-borde)] bg-white p-5 transition-all hover:border-[var(--color-action)] hover:shadow-[var(--edibs-shadow)]"
             >
-              <div className="font-medium">{p.nombre}</div>
+              <div className="font-semibold text-[var(--color-navy)]">{p.nombre}</div>
               {p.descripcion && (
-                <div className="mt-1 text-sm text-[var(--color-texto-suave)]">{p.descripcion}</div>
+                <div className="mt-1 text-sm text-[var(--color-texto-muted)]">{p.descripcion}</div>
               )}
             </Link>
           </li>

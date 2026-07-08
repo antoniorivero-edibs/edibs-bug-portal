@@ -10,7 +10,7 @@ Al reportar: se crea un issue en el repo del producto (con quién reporta, email
 
 ## Decisiones cerradas
 
-- **Login:** SSO. Nota: el SSO con Google necesita credenciales de Google Cloud, que ahora mismo no tenemos (mismo bloqueo que Metriks). Hasta tenerlas, se arranca con **magic link por email** (Supabase Auth), restringido a `@edibschool.com` / `@indexmediamarketing.com`. Da identidad verificada sin depender de Google Cloud, y se cambia a Google cuando haya acceso.
+- **Login:** **Google SSO** (Supabase Auth), único método de acceso. Restringido a los dominios `@edibschool.com`, `@nuclio.school` e `@indexmediamarketing.com` (el chequeo de dominio se hace en el callback tras el OAuth). Necesita un OAuth Client de Google Cloud (client id + secret) configurado en el proveedor Google de Supabase.
 - **Lista de productos:** dinámica pero curada, **por topic de GitHub**. El portal lista los repos de la org con el topic `bug-portal`. Añadir un producto = poner el topic al repo (cero cambios en el portal). Alias por defecto desde el nombre/descripción del repo, con mapa de overrides opcional.
 - **Campos del form:** título, descripción, fotos/vídeos. La severidad y demás la pone el equipo al triar (etiquetas).
 - **Adjuntos:** hasta 5 archivos, 50 MB cada uno. Imágenes `png/jpg/webp/gif` (van incrustadas en el issue), vídeos `mp4/mov/webm` (van como enlace). Se suben a Supabase Storage.
@@ -28,7 +28,6 @@ Al reportar: se crea un issue en el repo del producto (con quién reporta, email
 ## Pendiente (en issues)
 
 - Análisis con IA: comentario automático que estructura el reporte (pasos, esperado/real, área, severidad sugerida) conservando el texto original. Con llamada directa a Claude, no CodeRabbit (que es para PRs). v2: que señale ficheros candidatos leyendo el repo.
-- Cambiar magic link por Google SSO cuando haya acceso a Google Cloud.
 - Mapa de overrides de alias/etiquetas por producto.
 
 ## Accesos necesarios (para desplegarlo)
