@@ -51,7 +51,6 @@ export default function IdentityGate({ children }: { children: React.ReactNode }
 }
 
 function FormularioIdentidad({ onListo }: { onListo: (r: Reporter) => void }) {
-  const [nombre, setNombre] = useState("");
   const [email, setEmail] = useState("");
   const [error, setError] = useState("");
   const [enviando, setEnviando] = useState(false);
@@ -61,11 +60,11 @@ function FormularioIdentidad({ onListo }: { onListo: (r: Reporter) => void }) {
     setError("");
     setEnviando(true);
     try {
-      // La validación del dominio la hace el servidor (no se revela qué correos valen).
+      // El servidor valida el dominio (no se revela cuáles valen) y resuelve el nombre solo.
       const res = await fetch("/api/identify", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ nombre, email }),
+        body: JSON.stringify({ email }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
@@ -90,20 +89,15 @@ function FormularioIdentidad({ onListo }: { onListo: (r: Reporter) => void }) {
       <div className="rounded-[var(--radius-card)] border border-[var(--color-borde)] bg-white p-8 shadow-[var(--edibs-shadow)]">
         <h1 className="text-xl font-bold text-[var(--color-navy)]">Identifícate</h1>
         <p className="mt-1 text-sm text-[var(--color-texto-muted)]">
-          Tu nombre y tu correo corporativo, para saber quién reporta. No se envía ningún correo.
+          Solo tu correo corporativo, para saber quién reporta. No se envía ningún correo.
         </p>
         <form onSubmit={enviar} className="mt-6 space-y-3">
-          <input
-            value={nombre}
-            onChange={(e) => setNombre(e.target.value)}
-            placeholder="Nombre y apellidos"
-            className={input}
-          />
           <input
             type="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             placeholder="Tu correo corporativo"
+            autoFocus
             className={input}
           />
           <button

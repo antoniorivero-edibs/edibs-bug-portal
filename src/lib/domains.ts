@@ -21,3 +21,16 @@ export function emailPermitido(email: string | null | undefined): boolean {
   const dominio = limpio.split("@")[1];
   return dominiosPermitidos().includes(dominio);
 }
+
+// Nombre legible a partir del correo, como fallback cuando no hay Slack.
+// Ej: "a.dominguez@edibschool.com" -> "A. Dominguez"; "angel.martin@..." -> "Angel Martin".
+export function nombreDesdeEmail(email: string): string {
+  const local = email.split("@")[0] ?? email;
+  return (
+    local
+      .split(/[.\-_]+/)
+      .filter(Boolean)
+      .map((p) => (p.length === 1 ? p.toUpperCase() + "." : p.charAt(0).toUpperCase() + p.slice(1)))
+      .join(" ") || email
+  );
+}

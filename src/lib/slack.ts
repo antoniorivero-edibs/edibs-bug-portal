@@ -7,12 +7,35 @@ function slack(): WebClient {
   return new WebClient(env.slackBotToken());
 }
 
+// True si Slack está configurado (hay bot token). Permite features opcionales sin romper.
+export function slackConfigurado(): boolean {
+  return Boolean(process.env.SLACK_BOT_TOKEN);
+}
+
+// Busca un usuario de Slack por su correo. Devuelve nombre e id, o null si no hay token
+// o no se encuentra. Requiere el scope users:read.email en el bot.
+export async function buscarSlackPorEmail(
+  email: string
+): Promise<{ id: string; nombre: string } | null> {
+  if (!slackConfigurado()) return null;
+  try {
+    const res = await slack().users.lookupByEmail({ email });
+    if (!res.ok || !res.user?.id) return null;
+    const nombre =
+      res.user.real_name || res.user.profile?.real_name || res.user.name || email.split("@")[0];
+    return { id: res.user.id, nombre };
+  } catch {
+    return null;
+  }
+}
+
 export type AvisoSlack = {
   producto: string;
   tituloIssue: string;
   urlIssue: string;
   reporter: string;
   reporterEmail: string;
+  reporterSlackId?: string | null; // si se resuelve por email, se menciona al reporter
   devsSlack: string[];
 };
 
@@ -43,8 +66,8 @@ export async function avisarNuevoBug(aviso: AvisoSlack): Promise<MensajeSlack> {
         elements: [
           {
             type: "mrkdwn",
-            // Se muestra nombre y correo del que reporta para poder escribirle si hace falta.
-            text: `Reportado por *${aviso.reporter}* (${aviso.reporterEmail})${menciones ? ` · ${menciones}` : ""}`,
+            // Se muestra quién reporta (mencionado si está en Slack) y su correo, para poder escribirle.
+            text: `Reportado por ${aviso.reporterSlackId ? `<@${aviso.reporterSlackId}>` : `*${aviso.reporter}*`} (${aviso.reporterEmail})${menciones ? ` · avisados: ${menciones}` : ""}`,
           },
         ],
       },

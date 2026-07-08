@@ -2,7 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { crearClienteAdmin } from "@/lib/supabase/admin";
 import { emailPermitido } from "@/lib/domains";
 import { esProductoValido, crearIssue } from "@/lib/github";
-import { avisarNuevoBug } from "@/lib/slack";
+import { avisarNuevoBug, buscarSlackPorEmail } from "@/lib/slack";
 import {
   construirCuerpoIssue,
   tipoPorNombre,
@@ -84,12 +84,15 @@ export async function POST(request: NextRequest) {
   // 6. Avisar en Slack. Si Slack falla no tiramos todo el reporte: el issue ya existe.
   let slack: { channel: string; ts: string } | null = null;
   try {
+    // Si Slack está configurado, intenta resolver al reporter por su correo para mencionarlo.
+    const reporterSlack = await buscarSlackPorEmail(reporter.email);
     slack = await avisarNuevoBug({
       producto: producto.nombre,
       tituloIssue: titulo,
       urlIssue: issue.url,
       reporter: reporter.nombre,
       reporterEmail: reporter.email,
+      reporterSlackId: reporterSlack?.id ?? null,
       devsSlack: producto.devsSlack,
     });
   } catch (err) {
