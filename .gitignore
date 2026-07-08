@@ -1,0 +1,18 @@
+# Dependencias
+node_modules
+
+# Build / Next.js
+.next
+out
+dist
+
+# Vercel
+.vercel
+
+# Entorno (nunca secretos en el repo)
+.env*
+!.env.example
+
+# Logs y varios
+*.log
+.DS_Store
