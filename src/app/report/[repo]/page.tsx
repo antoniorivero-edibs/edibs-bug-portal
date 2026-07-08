@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { esProductoValido } from "@/lib/github";
+import { esProductoValido } from "@/lib/productos-db";
 import IdentityGate from "@/components/identity-gate";
 import FormularioReporte from "./form";
 

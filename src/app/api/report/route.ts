@@ -1,7 +1,8 @@
 import { NextResponse, type NextRequest, after } from "next/server";
 import { crearClienteAdmin } from "@/lib/supabase/admin";
 import { emailPermitido } from "@/lib/domains";
-import { esProductoValido, crearIssue, comentarIssue, aplicarLabels } from "@/lib/github";
+import { crearIssue, comentarIssue, aplicarLabels } from "@/lib/github";
+import { esProductoValido } from "@/lib/productos-db";
 import { avisarNuevoBug, buscarSlackPorEmail } from "@/lib/slack";
 import { triajeBug, investigarRepo, iaConfigurada } from "@/lib/ai";
 import { LABEL_PORTAL } from "@/lib/products";

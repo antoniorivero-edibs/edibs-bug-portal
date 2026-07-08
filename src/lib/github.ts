@@ -3,7 +3,6 @@ import "server-only";
 import { Octokit } from "@octokit/rest";
 import { createAppAuth } from "@octokit/auth-app";
 import { env } from "@/lib/env";
-import { aliasDeRepo, slacksDeRepo, asignadosDeRepo, type Producto } from "@/lib/products";
 
 // Cliente Octokit autenticado como instalación de la GitHub App.
 // Con esto se listan repos y se crean issues sin usar tokens personales.
@@ -18,35 +17,39 @@ function octokitApp(): Octokit {
   });
 }
 
-// Lista los productos: repos de la org con el topic configurado (bug-portal).
-// Añadir un producto = poner el topic al repo, cero cambios aquí.
-export async function listarProductos(): Promise<Producto[]> {
-  const octokit = octokitApp();
-  const org = env.githubOrg();
-  const topic = env.githubProductTopic();
+// Repo de la org accesible por la instalación (para el panel: elegir qué mostrar).
+export type RepoOrg = { repo: string; descripcion: string | null };
 
-  // La búsqueda por topic cubre repos privados accesibles por la instalación.
-  const query = `org:${org} topic:${topic}`;
-  const repos = await octokit.paginate(octokit.rest.search.repos, {
-    q: query,
+// Lista todos los repos de la org accesibles por la GitHub App.
+export async function listarReposOrg(): Promise<RepoOrg[]> {
+  const octokit = octokitApp();
+  const repos = await octokit.paginate(octokit.rest.apps.listReposAccessibleToInstallation, {
     per_page: 100,
   });
-
   return repos
-    .map((r) => ({
-      repo: r.name,
-      nombre: aliasDeRepo(r.name),
-      descripcion: r.description ?? null,
-      devsSlack: slacksDeRepo(r.name),
-      asignados: asignadosDeRepo(r.name),
-    }))
-    .sort((a, b) => a.nombre.localeCompare(b.nombre));
+    .map((r) => ({ repo: r.name, descripcion: r.description ?? null }))
+    .sort((a, b) => a.repo.localeCompare(b.repo));
 }
 
-// Comprueba que un repo concreto es un producto válido (tiene el topic).
-export async function esProductoValido(repo: string): Promise<Producto | null> {
-  const productos = await listarProductos();
-  return productos.find((p) => p.repo === repo) ?? null;
+// ¿El usuario de GitHub es miembro activo de la org? (para el acceso al panel).
+// Requiere permiso "Organization members: read" en la GitHub App.
+export async function esMiembroDeOrg(login: string): Promise<boolean> {
+  const octokit = octokitApp();
+  try {
+    const { data } = await octokit.rest.orgs.getMembershipForUser({
+      org: env.githubOrg(),
+      username: login,
+    });
+    return data.state === "active";
+  } catch {
+    return false;
+  }
+}
+
+// Sincroniza la descripción del repo en GitHub (requiere "Administration: write" en la App).
+export async function sincronizarDescripcionRepo(repo: string, descripcion: string): Promise<void> {
+  const octokit = octokitApp();
+  await octokit.rest.repos.update({ owner: env.githubOrg(), repo, description: descripcion });
 }
 
 export type NuevoIssue = {

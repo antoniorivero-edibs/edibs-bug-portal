@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { listarProductos } from "@/lib/github";
+import { listarProductos } from "@/lib/productos-db";
 import type { Producto } from "@/lib/products";
 import IdentityGate from "@/components/identity-gate";
 

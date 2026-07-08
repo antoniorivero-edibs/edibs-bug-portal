@@ -31,6 +31,11 @@ export const env = {
 
   slackBotToken: () => requerida("SLACK_BOT_TOKEN"),
   slackBugChannel: () => opcional("SLACK_BUG_CHANNEL", "#bug"),
+
+  // Panel de administración: login con GitHub (OAuth de la propia GitHub App) + sesión firmada.
+  githubClientId: () => requerida("GITHUB_APP_CLIENT_ID"),
+  githubClientSecret: () => requerida("GITHUB_APP_CLIENT_SECRET"),
+  panelSessionSecret: () => requerida("PANEL_SESSION_SECRET"),
 } as const;
 
 // La clave privada de la GitHub App a veces llega con "\n" escapados (Vercel).

@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { crearClienteAdmin } from "@/lib/supabase/admin";
 import { emailPermitido } from "@/lib/domains";
-import { esProductoValido } from "@/lib/github";
+import { esProductoValido } from "@/lib/productos-db";
 import {
   tipoPorNombre,
   saneaNombreArchivo,
