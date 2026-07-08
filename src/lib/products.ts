@@ -18,7 +18,8 @@ const ANGEL: Dev = { slack: process.env.SLACK_DEV_ANGEL || "U0BC1RE5NUT", github
 // Overrides opcionales de alias por repo. Por defecto el alias sale del nombre del repo.
 // Añadir aquí solo cuando el nombre del repo no sea suficientemente claro.
 const ALIAS_OVERRIDES: Record<string, string> = {
-  // "metriks": "Metriks",
+  "metrik-wiz-stars": "Metriks",
+  "vertice-brandeador": "Vértice Brandeador",
 };
 
 // Devs por repo. Si un repo no está, se usa DEVS_POR_DEFECTO (todo el equipo).
