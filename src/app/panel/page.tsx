@@ -6,6 +6,7 @@ import { crearClienteAdmin } from "@/lib/supabase/admin";
 import { iaConfigurada } from "@/lib/ai";
 import Tabs from "./tabs";
 import ProductosCliente, { type ProductoInicial } from "./productos-cliente";
+import BugsCliente, { type BugPanel } from "./bugs-cliente";
 
 export const dynamic = "force-dynamic";
 
@@ -13,19 +14,6 @@ const ERRORES: Record<string, string> = {
   state: "La sesión de login caducó. Inténtalo de nuevo.",
   github: "No se pudo autenticar con GitHub.",
   no_org: "Tu cuenta de GitHub no es miembro de la organización EDIBS-SCHOOL.",
-};
-
-type Bug = {
-  repo: string;
-  issue_number: number;
-  titulo: string;
-  estado: string;
-  reporter_email: string;
-  issue_url: string;
-  slack_permalink: string | null;
-  ia_triaje: boolean;
-  ia_investigacion: boolean;
-  creado_en: string;
 };
 
 export default async function PanelPage({
@@ -86,11 +74,11 @@ export default async function PanelPage({
   const { data: bugsData } = await admin
     .from("reportes")
     .select(
-      "repo, issue_number, titulo, estado, reporter_email, issue_url, slack_permalink, ia_triaje, ia_investigacion, creado_en"
+      "repo, issue_number, titulo, estado, reporter_email, issue_url, descripcion, adjuntos, navegador, url_origen, slack_permalink, ia_triaje, ia_investigacion, ia_triaje_url, ia_investigacion_url, creado_en"
     )
     .order("creado_en", { ascending: false })
     .limit(200);
-  const bugs = (bugsData ?? []) as Bug[];
+  const bugs = (bugsData ?? []) as unknown as BugPanel[];
   const iaOn = iaConfigurada();
 
   return (
@@ -119,88 +107,10 @@ export default async function PanelPage({
         etiquetas={["Productos", `Bugs (${bugs.length})`]}
         paneles={[
           <ProductosCliente key="p" inicial={inicial} />,
-          <TablaBugs key="b" bugs={bugs} iaOn={iaOn} />,
+          <BugsCliente key="b" bugs={bugs} iaOn={iaOn} />,
         ]}
       />
       </div>
-    </div>
-  );
-}
-
-function EstadoBadge({ estado }: { estado: string }) {
-  const cerrado = estado === "cerrado";
-  return (
-    <span
-      className={
-        cerrado
-          ? "rounded-full bg-purple-100 px-2 py-0.5 text-xs font-medium text-purple-700"
-          : "rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-700"
-      }
-    >
-      {estado}
-    </span>
-  );
-}
-
-function TablaBugs({ bugs, iaOn }: { bugs: Bug[]; iaOn: boolean }) {
-  const th = "px-3 py-2 text-left text-xs font-semibold text-[var(--color-texto-muted)]";
-  const td = "px-3 py-2 align-middle";
-  const iaTxt = (ok: boolean) => (ok ? "✓" : iaOn ? "pendiente" : "off");
-
-  if (bugs.length === 0) {
-    return <p className="text-sm text-[var(--color-texto-muted)]">Aún no hay bugs reportados.</p>;
-  }
-
-  return (
-    <div className="overflow-x-auto rounded-[var(--radius-card)] border border-[var(--color-borde)]">
-      <table className="w-full border-collapse text-sm">
-        <thead className="bg-[var(--color-surface-soft)]">
-          <tr>
-            <th className={th}>Estado</th>
-            <th className={th}>Producto</th>
-            <th className={th}>Título</th>
-            <th className={th}>Reporta</th>
-            <th className={th}>Fecha</th>
-            <th className={th}>Slack</th>
-            <th className={th}>IA</th>
-            <th className={th}>Issue</th>
-          </tr>
-        </thead>
-        <tbody>
-          {bugs.map((b) => (
-            <tr key={`${b.repo}#${b.issue_number}`} className="border-t border-[var(--color-borde)] bg-white">
-              <td className={td}>
-                <EstadoBadge estado={b.estado} />
-              </td>
-              <td className={`${td} font-mono text-xs`}>{b.repo}</td>
-              <td className={`${td} max-w-xs`}>
-                <span className="line-clamp-2">{b.titulo}</span>
-              </td>
-              <td className={`${td} text-xs text-[var(--color-texto-muted)]`}>{b.reporter_email}</td>
-              <td className={`${td} whitespace-nowrap text-xs text-[var(--color-texto-muted)]`}>
-                {b.creado_en.slice(0, 10)}
-              </td>
-              <td className={`${td} whitespace-nowrap text-xs`}>
-                {b.slack_permalink ? (
-                  <a href={b.slack_permalink} target="_blank" className="text-[var(--color-action)] hover:underline">
-                    enviado ↗
-                  </a>
-                ) : (
-                  <span className="text-[var(--color-texto-muted)]">—</span>
-                )}
-              </td>
-              <td className={`${td} whitespace-nowrap text-xs text-[var(--color-texto-muted)]`}>
-                triaje {iaTxt(b.ia_triaje)} · inv. {iaTxt(b.ia_investigacion)}
-              </td>
-              <td className={`${td} whitespace-nowrap`}>
-                <a href={b.issue_url} target="_blank" className="text-[var(--color-action)] hover:underline">
-                  #{b.issue_number} ↗
-                </a>
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
     </div>
   );
 }

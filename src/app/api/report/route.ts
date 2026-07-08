@@ -70,10 +70,12 @@ export async function POST(request: NextRequest) {
   }
 
   // 5. Crear el issue en GitHub.
+  const navegador = request.headers.get("user-agent") ?? "desconocido";
+  const urlOrigen = body.urlOrigen ?? "-";
   const cuerpo = construirCuerpoIssue(descripcion, adjuntos, reporter, {
     fecha: new Date().toISOString(),
-    navegador: request.headers.get("user-agent") ?? "desconocido",
-    urlOrigen: body.urlOrigen ?? "-",
+    navegador,
+    urlOrigen,
   });
 
   let issue;
@@ -118,6 +120,10 @@ export async function POST(request: NextRequest) {
       issue_url: issue.url,
       titulo,
       reporter_email: reporter.email,
+      descripcion,
+      adjuntos,
+      navegador,
+      url_origen: urlOrigen,
       slack_channel: slack?.channel ?? null,
       slack_ts: slack?.ts ?? null,
       slack_permalink: slack?.permalink ?? null,
@@ -133,15 +139,19 @@ export async function POST(request: NextRequest) {
     const numero = issue.numero;
     after(async () => {
       const admin = crearClienteAdmin();
-      const marcar = (campo: "ia_triaje" | "ia_investigacion") =>
-        admin.from("reportes").update({ [campo]: true }).eq("repo", repo).eq("issue_number", numero);
+      const marcar = (campo: "ia_triaje" | "ia_investigacion", url: string) =>
+        admin
+          .from("reportes")
+          .update({ [campo]: true, [`${campo}_url`]: url })
+          .eq("repo", repo)
+          .eq("issue_number", numero);
 
       try {
         const triaje = await triajeBug(titulo, descripcion, producto.nombre);
         if (triaje) {
-          await comentarIssue(repo, numero, triaje.comentario);
+          const url = await comentarIssue(repo, numero, triaje.comentario);
           if (triaje.labels.length) await aplicarLabels(repo, numero, triaje.labels);
-          await marcar("ia_triaje");
+          await marcar("ia_triaje", url);
         }
       } catch (err) {
         console.error("Error en el comentario de triaje:", err);
@@ -149,8 +159,8 @@ export async function POST(request: NextRequest) {
       try {
         const investigacion = await investigarRepo(titulo, descripcion, producto.nombre, repo);
         if (investigacion) {
-          await comentarIssue(repo, numero, investigacion);
-          await marcar("ia_investigacion");
+          const url = await comentarIssue(repo, numero, investigacion);
+          await marcar("ia_investigacion", url);
         }
       } catch (err) {
         console.error("Error en el comentario de investigación:", err);
