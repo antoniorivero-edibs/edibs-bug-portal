@@ -42,6 +42,7 @@ export type AvisoSlack = {
 export type MensajeSlack = {
   channel: string;
   ts: string;
+  permalink: string | null;
 };
 
 // Postea el aviso del nuevo bug en #bug y devuelve el ts para poder actualizarlo luego.
@@ -77,7 +78,17 @@ export async function avisarNuevoBug(aviso: AvisoSlack): Promise<MensajeSlack> {
   if (!res.ok || !res.ts || !res.channel) {
     throw new Error(`Slack no devolvió ts al postear: ${res.error ?? "desconocido"}`);
   }
-  return { channel: res.channel, ts: res.ts };
+
+  // Permalink del mensaje (para enlazarlo desde el panel). Best-effort.
+  let permalink: string | null = null;
+  try {
+    const p = await client.chat.getPermalink({ channel: res.channel, message_ts: res.ts });
+    permalink = p.ok ? p.permalink ?? null : null;
+  } catch {
+    permalink = null;
+  }
+
+  return { channel: res.channel, ts: res.ts, permalink };
 }
 
 // Marca el aviso como resuelto (o lo revierte) actualizando el mensaje existente.

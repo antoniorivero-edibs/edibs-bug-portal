@@ -5,33 +5,47 @@ import { crearClienteAdmin } from "@/lib/supabase/admin";
 import { sesionActual } from "@/lib/panel-auth";
 import { sincronizarDescripcionRepo } from "@/lib/github";
 
-// Guarda (crea o actualiza) un producto desde el panel. Solo admins logueados.
-// Si hay descripción, la sincroniza también con GitHub.
-export async function guardarProducto(formData: FormData): Promise<void> {
+// Guarda TODOS los productos de una vez (un solo botón en el panel). Solo admins.
+// Sincroniza con GitHub únicamente las descripciones que hayan cambiado.
+export async function guardarProductos(formData: FormData): Promise<void> {
   const login = await sesionActual();
   if (!login) throw new Error("No autorizado.");
 
-  const repo = String(formData.get("repo") ?? "").trim();
-  if (!repo) throw new Error("Falta el repo.");
-  const alias = String(formData.get("alias") ?? "").trim() || null;
-  const descripcion = String(formData.get("descripcion") ?? "").trim() || null;
-  const visible = formData.get("visible") === "on";
-  const orden = Number.parseInt(String(formData.get("orden") ?? "100"), 10) || 100;
+  const repos = String(formData.get("repos") ?? "")
+    .split("\n")
+    .map((r) => r.trim())
+    .filter(Boolean);
+  if (repos.length === 0) return;
 
   const admin = crearClienteAdmin();
-  await admin
-    .from("productos")
-    .upsert(
-      { repo, alias, descripcion, visible, orden, actualizado_en: new Date().toISOString() },
-      { onConflict: "repo" }
-    );
 
-  // Sincronizar la descripción con GitHub (best-effort; requiere Administration: write).
-  if (descripcion) {
-    try {
-      await sincronizarDescripcionRepo(repo, descripcion);
-    } catch (err) {
-      console.error("No se pudo sincronizar la descripción con GitHub:", err);
+  // Estado actual para detectar qué descripciones han cambiado.
+  const { data: actuales } = await admin
+    .from("productos")
+    .select("repo, descripcion")
+    .in("repo", repos);
+  const descrActual = new Map((actuales ?? []).map((r) => [r.repo, r.descripcion ?? ""]));
+
+  const ahora = new Date().toISOString();
+  const filas = repos.map((repo) => ({
+    repo,
+    alias: String(formData.get(`alias:${repo}`) ?? "").trim() || null,
+    descripcion: String(formData.get(`descripcion:${repo}`) ?? "").trim() || null,
+    visible: formData.get(`visible:${repo}`) === "on",
+    orden: Number.parseInt(String(formData.get(`orden:${repo}`) ?? "100"), 10) || 100,
+    actualizado_en: ahora,
+  }));
+
+  await admin.from("productos").upsert(filas, { onConflict: "repo" });
+
+  // Sincronizar a GitHub solo las descripciones nuevas/cambiadas y no vacías.
+  for (const f of filas) {
+    if (f.descripcion && f.descripcion !== (descrActual.get(f.repo) ?? "")) {
+      try {
+        await sincronizarDescripcionRepo(f.repo, f.descripcion);
+      } catch (err) {
+        console.error(`No se pudo sincronizar la descripción de ${f.repo}:`, err);
+      }
     }
   }
 

@@ -92,7 +92,7 @@ export async function POST(request: NextRequest) {
   }
 
   // 7. Avisar en Slack. Si Slack falla no tiramos todo el reporte: el issue ya existe.
-  let slack: { channel: string; ts: string } | null = null;
+  let slack: { channel: string; ts: string; permalink: string | null } | null = null;
   try {
     // Si Slack está configurado, intenta resolver al reporter por su correo para mencionarlo.
     const reporterSlack = await buscarSlackPorEmail(reporter.email);
@@ -120,6 +120,7 @@ export async function POST(request: NextRequest) {
       reporter_email: reporter.email,
       slack_channel: slack?.channel ?? null,
       slack_ts: slack?.ts ?? null,
+      slack_permalink: slack?.permalink ?? null,
     });
   } catch (err) {
     console.error("Error guardando el reporte:", err);
@@ -131,18 +132,26 @@ export async function POST(request: NextRequest) {
   if (iaConfigurada()) {
     const numero = issue.numero;
     after(async () => {
+      const admin = crearClienteAdmin();
+      const marcar = (campo: "ia_triaje" | "ia_investigacion") =>
+        admin.from("reportes").update({ [campo]: true }).eq("repo", repo).eq("issue_number", numero);
+
       try {
         const triaje = await triajeBug(titulo, descripcion, producto.nombre);
         if (triaje) {
           await comentarIssue(repo, numero, triaje.comentario);
           if (triaje.labels.length) await aplicarLabels(repo, numero, triaje.labels);
+          await marcar("ia_triaje");
         }
       } catch (err) {
         console.error("Error en el comentario de triaje:", err);
       }
       try {
         const investigacion = await investigarRepo(titulo, descripcion, producto.nombre, repo);
-        if (investigacion) await comentarIssue(repo, numero, investigacion);
+        if (investigacion) {
+          await comentarIssue(repo, numero, investigacion);
+          await marcar("ia_investigacion");
+        }
       } catch (err) {
         console.error("Error en el comentario de investigación:", err);
       }
