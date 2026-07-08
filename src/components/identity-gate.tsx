@@ -1,7 +1,6 @@
 "use client";
 
 import { createContext, useContext, useEffect, useState } from "react";
-import { emailPermitido, dominiosPermitidos } from "@/lib/domains";
 import { leerReporter, guardarReporter, borrarReporter, type Reporter } from "@/lib/reporter";
 
 // Contexto para que los hijos (formulario) accedan a la identidad ya validada.
@@ -55,21 +54,32 @@ function FormularioIdentidad({ onListo }: { onListo: (r: Reporter) => void }) {
   const [nombre, setNombre] = useState("");
   const [email, setEmail] = useState("");
   const [error, setError] = useState("");
+  const [enviando, setEnviando] = useState(false);
 
-  function enviar(e: React.FormEvent) {
+  async function enviar(e: React.FormEvent) {
     e.preventDefault();
     setError("");
-    if (nombre.trim().length < 2) {
-      setError("Pon tu nombre.");
-      return;
+    setEnviando(true);
+    try {
+      // La validación del dominio la hace el servidor (no se revela qué correos valen).
+      const res = await fetch("/api/identify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ nombre, email }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setError(data.error ?? "No se pudo continuar.");
+        return;
+      }
+      const reporter = { nombre: data.nombre as string, email: data.email as string };
+      guardarReporter(reporter);
+      onListo(reporter);
+    } catch {
+      setError("No se pudo continuar. Inténtalo de nuevo.");
+    } finally {
+      setEnviando(false);
     }
-    if (!emailPermitido(email)) {
-      setError(`Usa tu correo de EDIBS (${dominiosPermitidos().join(", ")}).`);
-      return;
-    }
-    const reporter = { nombre: nombre.trim(), email: email.trim().toLowerCase() };
-    guardarReporter(reporter);
-    onListo(reporter);
   }
 
   const input =
@@ -80,7 +90,7 @@ function FormularioIdentidad({ onListo }: { onListo: (r: Reporter) => void }) {
       <div className="rounded-[var(--radius-card)] border border-[var(--color-borde)] bg-white p-8 shadow-[var(--edibs-shadow)]">
         <h1 className="text-xl font-bold text-[var(--color-navy)]">Identifícate</h1>
         <p className="mt-1 text-sm text-[var(--color-texto-muted)]">
-          Solo tu nombre y tu correo de EDIBS para saber quién reporta. No se envía ningún correo.
+          Tu nombre y tu correo corporativo, para saber quién reporta. No se envía ningún correo.
         </p>
         <form onSubmit={enviar} className="mt-6 space-y-3">
           <input
@@ -93,14 +103,15 @@ function FormularioIdentidad({ onListo }: { onListo: (r: Reporter) => void }) {
             type="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            placeholder="tu.nombre@edibschool.com"
+            placeholder="Tu correo corporativo"
             className={input}
           />
           <button
             type="submit"
-            className="w-full rounded-[var(--radius-pill)] bg-[var(--color-action)] px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-[var(--color-action-hover)]"
+            disabled={enviando}
+            className="w-full rounded-[var(--radius-pill)] bg-[var(--color-action)] px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-[var(--color-action-hover)] disabled:opacity-60"
           >
-            Entrar
+            {enviando ? "Entrando..." : "Entrar"}
           </button>
           {error && <p className="text-sm text-red-600">{error}</p>}
         </form>

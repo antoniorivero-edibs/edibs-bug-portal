@@ -1,10 +1,12 @@
-// Lógica de dominios permitidos, compartida entre cliente y servidor.
-// Se lee de NEXT_PUBLIC_ALLOWED_EMAIL_DOMAINS para que esté disponible en ambos lados.
+import "server-only";
+
+// Lógica de dominios permitidos. SOLO servidor: los dominios no se exponen al navegador
+// (nada de NEXT_PUBLIC), para no revelar qué correos valen. El cliente valida contra /api/identify.
 
 const POR_DEFECTO = "edibschool.com,nuclio.school,indexmediamarketing.com";
 
-export function dominiosPermitidos(): string[] {
-  return (process.env.NEXT_PUBLIC_ALLOWED_EMAIL_DOMAINS || POR_DEFECTO)
+function dominiosPermitidos(): string[] {
+  return (process.env.ALLOWED_EMAIL_DOMAINS || POR_DEFECTO)
     .split(",")
     .map((d) => d.trim().toLowerCase())
     .filter(Boolean);
@@ -15,7 +17,6 @@ export function dominiosPermitidos(): string[] {
 export function emailPermitido(email: string | null | undefined): boolean {
   if (!email) return false;
   const limpio = email.trim().toLowerCase();
-  // Formato mínimo: algo@algo.tld
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(limpio)) return false;
   const dominio = limpio.split("@")[1];
   return dominiosPermitidos().includes(dominio);
