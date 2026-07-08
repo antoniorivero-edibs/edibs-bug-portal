@@ -85,3 +85,71 @@ export async function comentarIssue(repo: string, numero: number, cuerpo: string
     body: cuerpo,
   });
 }
+
+// Aplica labels a un issue, creando las que no existan en el repo (color neutro).
+export async function aplicarLabels(repo: string, numero: number, labels: string[]): Promise<void> {
+  const limpias = [...new Set(labels.map((l) => l.trim()).filter(Boolean))];
+  if (limpias.length === 0) return;
+
+  const octokit = octokitApp();
+  const owner = env.githubOrg();
+
+  const existentes = await octokit.paginate(octokit.rest.issues.listLabelsForRepo, {
+    owner,
+    repo,
+    per_page: 100,
+  });
+  const nombres = new Set(existentes.map((l) => l.name.toLowerCase()));
+
+  for (const label of limpias) {
+    if (!nombres.has(label.toLowerCase())) {
+      try {
+        await octokit.rest.issues.createLabel({ owner, repo, name: label, color: "ededed" });
+      } catch {
+        // Si otra petición la creó a la vez, se ignora.
+      }
+    }
+  }
+
+  await octokit.rest.issues.addLabels({ owner, repo, issue_number: numero, labels: limpias });
+}
+
+// Extensiones y rutas que NO aportan al análisis (se filtran del árbol).
+const EXCLUIR_RUTA = /(^|\/)(node_modules|\.next|dist|build|out|\.git|coverage|vendor|public\/)/;
+const EXT_CODIGO =
+  /\.(tsx?|jsx?|mjs|cjs|vue|svelte|py|rb|go|rs|java|kt|php|cs|swift|css|scss|sql|json|ya?ml|toml|md|prisma|graphql)$/i;
+
+// Lista de rutas de ficheros de código del repo (filtradas), para la fase 1 de la IA.
+export async function leerArbolRepo(repo: string): Promise<string[]> {
+  const octokit = octokitApp();
+  const owner = env.githubOrg();
+  const { data: info } = await octokit.rest.repos.get({ owner, repo });
+  const { data } = await octokit.rest.git.getTree({
+    owner,
+    repo,
+    tree_sha: info.default_branch,
+    recursive: "1",
+  });
+  return data.tree
+    .filter((t) => t.type === "blob" && typeof t.path === "string")
+    .map((t) => t.path as string)
+    .filter((p) => !EXCLUIR_RUTA.test(p) && EXT_CODIGO.test(p));
+}
+
+// Contenido (truncado) de un fichero del repo, para la fase 2 de la IA.
+export async function leerFichero(
+  repo: string,
+  path: string,
+  maxChars = 6000
+): Promise<string | null> {
+  const octokit = octokitApp();
+  try {
+    const { data } = await octokit.rest.repos.getContent({ owner: env.githubOrg(), repo, path });
+    if (!Array.isArray(data) && data.type === "file" && "content" in data && data.content) {
+      return Buffer.from(data.content, "base64").toString("utf8").slice(0, maxChars);
+    }
+  } catch {
+    // Fichero no encontrado o sin acceso: se ignora.
+  }
+  return null;
+}

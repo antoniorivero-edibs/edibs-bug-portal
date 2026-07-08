@@ -48,7 +48,7 @@ export function saneaNombreArchivo(nombre: string): string {
   );
 }
 
-// Construye el cuerpo del issue en Markdown.
+// Construye el cuerpo del issue en Markdown, bien estructurado.
 // Conserva el texto original del reporter y añade adjuntos y metadatos.
 export function construirCuerpoIssue(
   descripcion: string,
@@ -58,30 +58,39 @@ export function construirCuerpoIssue(
 ): string {
   const partes: string[] = [];
 
+  // Descripción tal cual la escribió la persona.
+  partes.push("## Descripción");
   partes.push(descripcion.trim() || "_(Sin descripción)_");
 
-  const imagenes = adjuntos.filter((a) => a.tipo === "imagen");
-  const videos = adjuntos.filter((a) => a.tipo === "video");
-
-  if (imagenes.length > 0) {
-    partes.push("### Capturas");
-    // Las imágenes se incrustan para que se vean en el issue.
-    partes.push(imagenes.map((a) => `![${a.nombre}](${a.url})`).join("\n"));
+  // Adjuntos: imágenes incrustadas, vídeos como enlace.
+  partes.push("## Adjuntos");
+  if (adjuntos.length === 0) {
+    partes.push("_Sin adjuntos._");
+  } else {
+    const imagenes = adjuntos.filter((a) => a.tipo === "imagen");
+    const videos = adjuntos.filter((a) => a.tipo === "video");
+    const bloques: string[] = [];
+    if (imagenes.length > 0) {
+      bloques.push(imagenes.map((a) => `![${a.nombre}](${a.url})`).join("\n\n"));
+    }
+    if (videos.length > 0) {
+      bloques.push(
+        "**Vídeos**\n" + videos.map((a) => `- [${a.nombre}](${a.url})`).join("\n")
+      );
+    }
+    partes.push(bloques.join("\n\n"));
   }
 
-  if (videos.length > 0) {
-    partes.push("### Vídeos");
-    // Los vídeos van como enlace.
-    partes.push(videos.map((a) => `- [${a.nombre}](${a.url})`).join("\n"));
-  }
-
-  partes.push("---");
+  // Metadatos del reporte, en tabla para que se lea limpio.
+  partes.push("## Datos del reporte");
   partes.push(
     [
-      `**Reportado por:** ${reporter.nombre} (${reporter.email})`,
-      `**Fecha:** ${meta.fecha}`,
-      `**Origen:** ${meta.urlOrigen}`,
-      `**Navegador:** ${meta.navegador}`,
+      "| | |",
+      "|---|---|",
+      `| **Reportado por** | ${reporter.nombre} (${reporter.email}) |`,
+      `| **Fecha** | ${meta.fecha} |`,
+      `| **Origen** | ${meta.urlOrigen} |`,
+      `| **Navegador** | ${meta.navegador} |`,
     ].join("\n")
   );
 

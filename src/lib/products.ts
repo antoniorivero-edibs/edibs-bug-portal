@@ -43,6 +43,24 @@ function devsDeRepo(repo: string): Dev[] {
   return DEVS_POR_REPO[repo] ?? DEVS_POR_DEFECTO;
 }
 
+// Label que lleva todo issue creado desde el portal. El resto de labels
+// (categoría, área, tipo...) las decide Claude y se crean si no existen.
+export const LABEL_PORTAL = "portal";
+
+// Vocabulario base de categorías sugerido a Claude. No es una lista cerrada:
+// Claude puede añadir las que necesite. Sirve para dar consistencia.
+export const CATEGORIAS_SUGERIDAS = [
+  "frontend",
+  "backend",
+  "auth",
+  "ui",
+  "datos",
+  "rendimiento",
+  "integracion",
+  "infra",
+  "otro",
+];
+
 // IDs de Slack de los devs del producto (para mencionar en el aviso).
 export function slacksDeRepo(repo: string): string[] {
   return devsDeRepo(repo).map((d) => d.slack);

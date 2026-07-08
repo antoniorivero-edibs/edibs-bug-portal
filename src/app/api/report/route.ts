@@ -1,9 +1,10 @@
-import { NextResponse, type NextRequest } from "next/server";
+import { NextResponse, type NextRequest, after } from "next/server";
 import { crearClienteAdmin } from "@/lib/supabase/admin";
 import { emailPermitido } from "@/lib/domains";
-import { esProductoValido, crearIssue, comentarIssue } from "@/lib/github";
+import { esProductoValido, crearIssue, comentarIssue, aplicarLabels } from "@/lib/github";
 import { avisarNuevoBug, buscarSlackPorEmail } from "@/lib/slack";
-import { analizarBug } from "@/lib/ai";
+import { triajeBug, investigarRepo, iaConfigurada } from "@/lib/ai";
+import { LABEL_PORTAL } from "@/lib/products";
 import {
   construirCuerpoIssue,
   tipoPorNombre,
@@ -82,14 +83,11 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "No se pudo crear el issue en GitHub." }, { status: 502 });
   }
 
-  // 6. Análisis con IA (opcional): comentario estructurado en el issue. Si falla, se ignora.
+  // 6. Label base del portal (las de categoría las añade Claude en segundo plano).
   try {
-    const analisis = await analizarBug(titulo, descripcion, producto.nombre);
-    if (analisis) {
-      await comentarIssue(repo, issue.numero, analisis);
-    }
+    await aplicarLabels(repo, issue.numero, [LABEL_PORTAL]);
   } catch (err) {
-    console.error("Error añadiendo el análisis con IA:", err);
+    console.error("Error aplicando la label portal:", err);
   }
 
   // 7. Avisar en Slack. Si Slack falla no tiramos todo el reporte: el issue ya existe.
@@ -110,7 +108,7 @@ export async function POST(request: NextRequest) {
     console.error("Error avisando en Slack:", err);
   }
 
-  // 7. Guardar el mapeo en la tabla reportes (con service role).
+  // 8. Guardar el mapeo en la tabla reportes (con service role).
   try {
     const admin = crearClienteAdmin();
     await admin.from("reportes").insert({
@@ -126,5 +124,29 @@ export async function POST(request: NextRequest) {
     console.error("Error guardando el reporte:", err);
   }
 
-  return NextResponse.json({ ok: true, urlIssue: issue.url, numero: issue.numero });
+  // 9. Análisis con IA en segundo plano: no bloquea la respuesta al usuario.
+  //    Se publican DOS comentarios por orden de importancia, según van terminando:
+  //    (1) triaje (resumen + severidad + categoría, aplica labels), (2) investigación del repo.
+  if (iaConfigurada()) {
+    const numero = issue.numero;
+    after(async () => {
+      try {
+        const triaje = await triajeBug(titulo, descripcion, producto.nombre);
+        if (triaje) {
+          await comentarIssue(repo, numero, triaje.comentario);
+          if (triaje.labels.length) await aplicarLabels(repo, numero, triaje.labels);
+        }
+      } catch (err) {
+        console.error("Error en el comentario de triaje:", err);
+      }
+      try {
+        const investigacion = await investigarRepo(titulo, descripcion, producto.nombre, repo);
+        if (investigacion) await comentarIssue(repo, numero, investigacion);
+      } catch (err) {
+        console.error("Error en el comentario de investigación:", err);
+      }
+    });
+  }
+
+  return NextResponse.json({ ok: true });
 }

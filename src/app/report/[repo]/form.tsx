@@ -28,7 +28,6 @@ export default function FormularioReporte({
   const [archivos, setArchivos] = useState<File[]>([]);
   const [estado, setEstado] = useState<Estado>("idle");
   const [error, setError] = useState("");
-  const [urlIssue, setUrlIssue] = useState("");
 
   function onSeleccionArchivos(e: React.ChangeEvent<HTMLInputElement>) {
     setError("");
@@ -132,8 +131,6 @@ export default function FormularioReporte({
         throw new Error(cuerpo.error ?? "No se pudo crear el reporte.");
       }
 
-      const data = await res.json();
-      setUrlIssue(data.urlIssue);
       setEstado("ok");
     } catch (err) {
       setEstado("error");
@@ -144,19 +141,22 @@ export default function FormularioReporte({
   if (estado === "ok") {
     return (
       <div className="mt-6 rounded-[var(--radius-card)] border border-green-300 bg-green-50 p-5 text-sm">
-        <p className="font-semibold text-green-800">Reporte enviado. ¡Gracias!</p>
+        <p className="font-semibold text-green-800">✅ Reporte enviado. ¡Gracias!</p>
         <p className="mt-1 text-[var(--color-texto-muted)]">
-          Se creó el issue en {nombreProducto} y se avisó en Slack.
+          Tu reporte de {nombreProducto} se ha registrado correctamente y se ha avisado al equipo.
+          Le echarán un vistazo lo antes posible.
         </p>
-        {urlIssue && (
-          <a
-            href={urlIssue}
-            target="_blank"
-            className="mt-2 inline-block font-medium text-[var(--color-action)] underline"
-          >
-            Ver el issue en GitHub
-          </a>
-        )}
+        <button
+          onClick={() => {
+            setTitulo("");
+            setDescripcion("");
+            setArchivos([]);
+            setEstado("idle");
+          }}
+          className="mt-3 rounded-[var(--radius-pill)] border border-[var(--color-borde)] px-4 py-1.5 text-xs font-medium text-[var(--color-texto-muted)] transition-colors hover:border-[var(--color-action)] hover:text-[var(--color-navy)]"
+        >
+          Reportar otro
+        </button>
       </div>
     );
   }
