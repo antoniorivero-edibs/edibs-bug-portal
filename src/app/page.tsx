@@ -1,8 +1,10 @@
 import Link from "next/link";
-import { crearClienteServidor } from "@/lib/supabase/server";
 import { listarProductos } from "@/lib/github";
 import type { Producto } from "@/lib/products";
-import LogoutButton from "@/components/logout-button";
+import IdentityGate from "@/components/identity-gate";
+
+// Siempre en vivo: la lista de productos sale de la GitHub App en cada visita.
+export const dynamic = "force-dynamic";
 
 // La lista de productos depende de la GitHub App; si aún no está configurada,
 // mostramos un aviso en vez de romper la página.
@@ -19,22 +21,14 @@ async function cargarProductos(): Promise<{ productos: Producto[]; error: string
 }
 
 export default async function HomePage() {
-  const supabase = await crearClienteServidor();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
   const { productos, error } = await cargarProductos();
 
   return (
-    <div>
-      <div className="mb-6 flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-[var(--color-navy)]">Elige un producto</h1>
-          <p className="mt-1 text-sm text-[var(--color-texto-muted)]">{user?.email}</p>
-        </div>
-        <LogoutButton />
-      </div>
+    <IdentityGate>
+      <h1 className="text-2xl font-bold text-[var(--color-navy)]">Elige un producto</h1>
+      <p className="mb-6 mt-1 text-sm text-[var(--color-texto-muted)]">
+        Selecciona el producto donde has encontrado el bug.
+      </p>
 
       {error && (
         <div className="rounded-[var(--radius-card)] border border-amber-300 bg-amber-50 p-4 text-sm text-amber-800">
@@ -64,6 +58,6 @@ export default async function HomePage() {
           </li>
         ))}
       </ul>
-    </div>
+    </IdentityGate>
   );
 }

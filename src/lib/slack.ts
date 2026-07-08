@@ -12,6 +12,7 @@ export type AvisoSlack = {
   tituloIssue: string;
   urlIssue: string;
   reporter: string;
+  reporterEmail: string;
   devsSlack: string[];
 };
 
@@ -42,7 +43,8 @@ export async function avisarNuevoBug(aviso: AvisoSlack): Promise<MensajeSlack> {
         elements: [
           {
             type: "mrkdwn",
-            text: `Reportado por *${aviso.reporter}* ${menciones ? `· ${menciones}` : ""}`,
+            // Se muestra nombre y correo del que reporta para poder escribirle si hace falta.
+            text: `Reportado por *${aviso.reporter}* (${aviso.reporterEmail})${menciones ? ` · ${menciones}` : ""}`,
           },
         ],
       },

@@ -2,11 +2,13 @@
 
 import { useState } from "react";
 import { crearClienteNavegador } from "@/lib/supabase/client";
+import { useReporter } from "@/components/identity-gate";
 import {
   MAX_ADJUNTOS,
   MAX_BYTES_ADJUNTO,
   tipoPorNombre,
   type Adjunto,
+  type TipoAdjunto,
 } from "@/lib/report";
 
 const BUCKET = "adjuntos";
@@ -20,6 +22,7 @@ export default function FormularioReporte({
   repo: string;
   nombreProducto: string;
 }) {
+  const reporter = useReporter();
   const [titulo, setTitulo] = useState("");
   const [descripcion, setDescripcion] = useState("");
   const [archivos, setArchivos] = useState<File[]>([]);
@@ -53,26 +56,42 @@ export default function FormularioReporte({
     setArchivos((prev) => prev.filter((_, i) => i !== idx));
   }
 
-  // Sube los archivos directamente a Supabase Storage (evita el límite de body de las funciones).
+  // Sube los archivos directo a Storage con URLs firmadas que pide al servidor
+  // (evita el límite de body de las funciones y mantiene el bucket cerrado).
   async function subirAdjuntos(): Promise<Adjunto[]> {
     const supabase = crearClienteNavegador();
-    const adjuntos: Adjunto[] = [];
 
-    for (const file of archivos) {
-      const tipo = tipoPorNombre(file.name)!;
-      const ext = file.name.split(".").pop()?.toLowerCase() ?? "bin";
-      // Ruta única: repo + marca de tiempo + índice + nombre saneado.
-      const ruta = `${repo}/${Date.now()}-${adjuntos.length}-${sanear(file.name)}.${ext}`;
+    // 1. Pide al servidor una URL firmada por archivo (valida dominio, producto y tipos).
+    const res = await fetch("/api/upload-url", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        repo,
+        email: reporter.email,
+        archivos: archivos.map((f) => ({ nombre: f.name, tamano: f.size })),
+      }),
+    });
+    if (!res.ok) {
+      const cuerpo = await res.json().catch(() => ({}));
+      throw new Error(cuerpo.error ?? "No se pudieron preparar los adjuntos.");
+    }
+    const { urls } = (await res.json()) as {
+      urls: { nombre: string; tipo: TipoAdjunto; path: string; token: string }[];
+    };
+
+    // 2. Sube cada archivo con su token firmado y arma la URL pública.
+    const adjuntos: Adjunto[] = [];
+    for (let i = 0; i < archivos.length; i++) {
+      const file = archivos[i];
+      const firma = urls[i];
       const { error: errSubida } = await supabase.storage
         .from(BUCKET)
-        .upload(ruta, file, { cacheControl: "3600", upsert: false });
-
+        .uploadToSignedUrl(firma.path, firma.token, file);
       if (errSubida) {
         throw new Error(`No se pudo subir ${file.name}: ${errSubida.message}`);
       }
-
-      const { data } = supabase.storage.from(BUCKET).getPublicUrl(ruta);
-      adjuntos.push({ nombre: file.name, url: data.publicUrl, tipo, tamano: file.size });
+      const { data } = supabase.storage.from(BUCKET).getPublicUrl(firma.path);
+      adjuntos.push({ nombre: file.name, url: data.publicUrl, tipo: firma.tipo, tamano: file.size });
     }
     return adjuntos;
   }
@@ -103,6 +122,7 @@ export default function FormularioReporte({
           titulo: titulo.trim(),
           descripcion: descripcion.trim(),
           adjuntos,
+          reporter,
           urlOrigen: window.location.href,
         }),
       });
@@ -218,16 +238,4 @@ export default function FormularioReporte({
       </button>
     </form>
   );
-}
-
-// Limpia el nombre de fichero para usarlo en la ruta de Storage.
-function sanear(nombre: string): string {
-  const base = nombre.replace(/\.[^.]+$/, "");
-  return base
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[̀-ͯ]/g, "") // quita acentos
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "")
-    .slice(0, 40);
 }

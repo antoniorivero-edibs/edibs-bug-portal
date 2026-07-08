@@ -1,24 +1,4 @@
 project_id = "vktjjehjdpcliwxwjbzu"
 
-[auth]
-enabled = true
-# URL base del portal en producción.
-site_url = "https://edibs-bug-portal.vercel.app"
-# URLs a las que se permite redirigir tras el login (prod, previews de Vercel y local).
-additional_redirect_urls = [
-  "https://edibs-bug-portal.vercel.app/**",
-  "https://*-info-51132926s-projects.vercel.app/**",
-  "http://localhost:3000/**"
-]
-jwt_expiry = 3600
-
-# Login SOLO con Google: desactivamos el proveedor de email (nada de magic link ni contraseña).
-[auth.email]
-enable_signup = false
-
-# Google SSO. El client_id y el secret se rellenan con las credenciales de Google Cloud.
-# Se leen de variables de entorno para no meter secretos en el repo.
-[auth.external.google]
-enabled = true
-client_id = "env(SUPABASE_AUTH_GOOGLE_CLIENT_ID)"
-secret = "env(SUPABASE_AUTH_GOOGLE_SECRET)"
+# El portal no usa Supabase Auth: el acceso es solo nombre + correo (gate por dominio en la app).
+# Supabase se usa para Storage (adjuntos) y la tabla `reportes`.

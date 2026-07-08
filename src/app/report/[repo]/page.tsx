@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { esProductoValido } from "@/lib/github";
+import IdentityGate from "@/components/identity-gate";
 import FormularioReporte from "./form";
 
 // Valida que el repo es un producto reportable antes de mostrar el formulario.
@@ -34,10 +35,12 @@ export default async function ReportPage({
       <h1 className="mt-3 text-2xl font-bold text-[var(--color-navy)]">
         Reportar bug · {producto.nombre}
       </h1>
-      <p className="mt-1 text-sm text-[var(--color-texto-muted)]">
+      <p className="mb-6 mt-1 text-sm text-[var(--color-texto-muted)]">
         Cuenta qué pasa y adjunta capturas o vídeos si ayudan.
       </p>
-      <FormularioReporte repo={producto.repo} nombreProducto={producto.nombre} />
+      <IdentityGate>
+        <FormularioReporte repo={producto.repo} nombreProducto={producto.nombre} />
+      </IdentityGate>
     </div>
   );
 }

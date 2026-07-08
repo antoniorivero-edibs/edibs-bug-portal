@@ -34,6 +34,20 @@ export function tipoPorNombre(nombre: string): TipoAdjunto | null {
   return null;
 }
 
+// Limpia el nombre de fichero para usarlo en la ruta de Storage (sin acentos ni símbolos).
+export function saneaNombreArchivo(nombre: string): string {
+  const base = nombre.replace(/\.[^.]+$/, "");
+  return (
+    base
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[̀-ͯ]/g, "")
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-+|-+$/g, "")
+      .slice(0, 40) || "archivo"
+  );
+}
+
 // Construye el cuerpo del issue en Markdown.
 // Conserva el texto original del reporter y añade adjuntos y metadatos.
 export function construirCuerpoIssue(

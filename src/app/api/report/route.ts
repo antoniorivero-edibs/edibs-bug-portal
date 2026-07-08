@@ -1,7 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { crearClienteServidor } from "@/lib/supabase/server";
 import { crearClienteAdmin } from "@/lib/supabase/admin";
-import { emailPermitido } from "@/lib/auth";
+import { emailPermitido } from "@/lib/domains";
 import { esProductoValido, crearIssue } from "@/lib/github";
 import { avisarNuevoBug } from "@/lib/slack";
 import {
@@ -12,25 +11,17 @@ import {
   type Adjunto,
 } from "@/lib/report";
 
-// Crea el reporte de punta a punta: valida sesión, crea el issue, avisa en Slack
-// y guarda el mapeo (repo + issue -> canal + ts) para poder marcarlo resuelto al cerrar.
+// Crea el reporte de punta a punta: crea el issue, avisa en Slack y guarda el mapeo
+// (repo + issue -> canal + ts) para poder marcarlo resuelto al cerrar.
+// Sin login: la identidad (nombre + correo) la declara el cliente y se valida por dominio.
 export async function POST(request: NextRequest) {
-  // 1. Sesión y dominio.
-  const supabase = await crearClienteServidor();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user || !emailPermitido(user.email)) {
-    return NextResponse.json({ error: "No autorizado." }, { status: 401 });
-  }
-
-  // 2. Cuerpo de la petición.
+  // 1. Cuerpo de la petición.
   let body: {
     repo?: string;
     titulo?: string;
     descripcion?: string;
     adjuntos?: Adjunto[];
+    reporter?: { nombre?: string; email?: string };
     urlOrigen?: string;
   };
   try {
@@ -38,6 +29,14 @@ export async function POST(request: NextRequest) {
   } catch {
     return NextResponse.json({ error: "Cuerpo inválido." }, { status: 400 });
   }
+
+  // 2. Identidad: gate por dominio (no hay sesión).
+  const nombreReporter = (body.reporter?.nombre ?? "").trim();
+  const emailReporter = (body.reporter?.email ?? "").trim().toLowerCase();
+  if (!nombreReporter || !emailPermitido(emailReporter)) {
+    return NextResponse.json({ error: "Identifícate con tu correo de EDIBS." }, { status: 403 });
+  }
+  const reporter = { nombre: nombreReporter, email: emailReporter };
 
   const repo = (body.repo ?? "").trim();
   const titulo = (body.titulo ?? "").trim();
@@ -67,10 +66,6 @@ export async function POST(request: NextRequest) {
     }
   }
 
-  const nombreReporter =
-    (user.user_metadata?.full_name as string) || user.email!.split("@")[0];
-  const reporter = { nombre: nombreReporter, email: user.email! };
-
   // 5. Crear el issue en GitHub.
   const cuerpo = construirCuerpoIssue(descripcion, adjuntos, reporter, {
     fecha: new Date().toISOString(),
@@ -94,6 +89,7 @@ export async function POST(request: NextRequest) {
       tituloIssue: titulo,
       urlIssue: issue.url,
       reporter: reporter.nombre,
+      reporterEmail: reporter.email,
       devsSlack: producto.devsSlack,
     });
   } catch (err) {
