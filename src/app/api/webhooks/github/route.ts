@@ -44,27 +44,32 @@ export async function POST(request: NextRequest) {
     .eq("issue_number", issueNumber)
     .maybeSingle();
 
-  if (!reporte?.slack_channel || !reporte?.slack_ts) {
-    // No hay mensaje que actualizar (issue no creado desde el portal, o sin Slack).
-    return NextResponse.json({ ok: true, sinMensajeSlack: true });
+  if (!reporte) {
+    // Issue no creado desde el portal: nada que hacer.
+    return NextResponse.json({ ok: true, sinReporte: true });
   }
 
   const resuelto = action === "closed";
-  try {
-    await actualizarEstadoBug(reporte.slack_channel, reporte.slack_ts, resuelto, {
-      producto: aliasDeRepo(repo),
-      tituloIssue: titulo,
-      urlIssue: issueUrl,
-    });
-    // Reflejar el estado en la tabla.
-    await admin
-      .from("reportes")
-      .update({ estado: resuelto ? "cerrado" : "abierto" })
-      .eq("repo", repo)
-      .eq("issue_number", issueNumber);
-  } catch (err) {
-    console.error("Error actualizando Slack desde webhook:", err);
-    return NextResponse.json({ error: "No se pudo actualizar Slack." }, { status: 502 });
+
+  // Reflejar el estado en la tabla siempre (haya Slack o no).
+  await admin
+    .from("reportes")
+    .update({ estado: resuelto ? "cerrado" : "abierto" })
+    .eq("repo", repo)
+    .eq("issue_number", issueNumber);
+
+  // Actualizar el mensaje de Slack solo si existe (Slack puede no estar configurado todavía).
+  if (reporte.slack_channel && reporte.slack_ts) {
+    try {
+      await actualizarEstadoBug(reporte.slack_channel, reporte.slack_ts, resuelto, {
+        producto: aliasDeRepo(repo),
+        tituloIssue: titulo,
+        urlIssue: issueUrl,
+      });
+    } catch (err) {
+      console.error("Error actualizando Slack desde webhook:", err);
+      return NextResponse.json({ error: "No se pudo actualizar Slack." }, { status: 502 });
+    }
   }
 
   return NextResponse.json({ ok: true });
