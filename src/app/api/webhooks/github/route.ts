@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { verify } from "@octokit/webhooks-methods";
 import { crearClienteAdmin } from "@/lib/supabase/admin";
-import { actualizarEstadoBug } from "@/lib/slack";
+import { actualizarEstadoBug, responderEnHilo } from "@/lib/slack";
 import { aliasDeRepo } from "@/lib/products";
 import { env } from "@/lib/env";
 
@@ -66,6 +66,12 @@ export async function POST(request: NextRequest) {
         tituloIssue: titulo,
         urlIssue: issueUrl,
       });
+      // Aviso en el hilo de seguimiento.
+      await responderEnHilo(
+        reporte.slack_channel,
+        reporte.slack_ts,
+        resuelto ? ":white_check_mark: *Resuelto* (issue cerrado)" : ":arrows_counterclockwise: *Reabierto*"
+      );
     } catch (err) {
       console.error("Error actualizando Slack desde webhook:", err);
       return NextResponse.json({ error: "No se pudo actualizar Slack." }, { status: 502 });

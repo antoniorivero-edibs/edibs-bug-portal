@@ -3,7 +3,7 @@ import { crearClienteAdmin } from "@/lib/supabase/admin";
 import { emailPermitido } from "@/lib/domains";
 import { crearIssue, comentarIssue, aplicarLabels } from "@/lib/github";
 import { esProductoValido } from "@/lib/productos-db";
-import { avisarNuevoBug, buscarSlackPorEmail } from "@/lib/slack";
+import { avisarNuevoBug, buscarSlackPorEmail, responderEnHilo, mdASlack } from "@/lib/slack";
 import { triajeBug, investigarRepo, iaConfigurada } from "@/lib/ai";
 import { LABEL_PORTAL } from "@/lib/products";
 import {
@@ -105,7 +105,7 @@ export async function POST(request: NextRequest) {
       tituloIssue: titulo,
       urlIssue: issue.url,
       descripcion,
-      numAdjuntos: adjuntos.length,
+      adjuntos,
       reporter: reporter.nombre,
       reporterEmail: reporter.email,
       reporterSlackId: reporterSlack?.id ?? null,
@@ -158,6 +158,7 @@ export async function POST(request: NextRequest) {
           const url = await comentarIssue(repo, numero, triaje.comentario);
           if (triaje.labels.length) await aplicarLabels(repo, numero, triaje.labels);
           await marcar("ia_triaje", url);
+          if (slack) await responderEnHilo(slack.channel, slack.ts, mdASlack(triaje.comentario));
         }
       } catch (err) {
         console.error("Error en el comentario de triaje:", err);
@@ -167,6 +168,7 @@ export async function POST(request: NextRequest) {
         if (investigacion) {
           const url = await comentarIssue(repo, numero, investigacion);
           await marcar("ia_investigacion", url);
+          if (slack) await responderEnHilo(slack.channel, slack.ts, mdASlack(investigacion));
         }
       } catch (err) {
         console.error("Error en el comentario de investigación:", err);

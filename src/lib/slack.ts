@@ -2,6 +2,7 @@ import "server-only";
 
 import { WebClient } from "@slack/web-api";
 import { env } from "@/lib/env";
+import type { Adjunto } from "@/lib/report";
 
 function slack(): WebClient {
   return new WebClient(env.slackBotToken());
@@ -10,6 +11,25 @@ function slack(): WebClient {
 // True si Slack está configurado (hay bot token). Permite features opcionales sin romper.
 export function slackConfigurado(): boolean {
   return Boolean(process.env.SLACK_BOT_TOKEN);
+}
+
+// Conversión ligera de Markdown (GitHub) a mrkdwn (Slack) para volcar el análisis de la IA al hilo.
+export function mdASlack(md: string): string {
+  return md
+    .replace(/^#{1,6}\s*(.+)$/gm, "*$1*") // encabezados -> negrita
+    .replace(/\[([^\]]+)\]\(([^)]+)\)/g, "<$2|$1>") // enlaces
+    .replace(/\*\*([^*]+)\*\*/g, "*$1*") // **negrita** -> *negrita*
+    .replace(/^\s*-\s/gm, "• "); // viñetas
+}
+
+// Publica un mensaje en el hilo de seguimiento de un bug (thread_ts = ts del aviso).
+export async function responderEnHilo(channel: string, threadTs: string, texto: string): Promise<void> {
+  if (!slackConfigurado()) return;
+  try {
+    await slack().chat.postMessage({ channel, thread_ts: threadTs, text: texto, unfurl_links: false });
+  } catch (err) {
+    console.error("Error respondiendo en el hilo de Slack:", err);
+  }
 }
 
 // Busca un usuario de Slack por su correo. Devuelve nombre e id, o null si no hay token
@@ -34,7 +54,7 @@ export type AvisoSlack = {
   tituloIssue: string;
   urlIssue: string;
   descripcion: string;
-  numAdjuntos: number;
+  adjuntos: Adjunto[];
   reporter: string;
   reporterEmail: string;
   reporterSlackId?: string | null; // si se resuelve por email, se menciona al reporter
@@ -52,55 +72,51 @@ export async function avisarNuevoBug(aviso: AvisoSlack): Promise<MensajeSlack> {
   const client = slack();
   const canal = env.slackBugChannel();
   const menciones = aviso.devsSlack.map((id) => `<@${id}>`).join(" ");
-  const quienReporta = aviso.reporterSlackId
-    ? `<@${aviso.reporterSlackId}>`
-    : `*${aviso.reporter}*`;
-  // Descripción recortada para el mensaje (el detalle completo está en el issue).
+  const quienReporta = aviso.reporterSlackId ? `<@${aviso.reporterSlackId}>` : `*${aviso.reporter}*`;
   const desc = aviso.descripcion.trim();
-  const descCorta = desc.length > 600 ? `${desc.slice(0, 600)}…` : desc;
+  const descCorta = desc.length > 2500 ? `${desc.slice(0, 2500)}…` : desc;
+
+  const imagenes = aviso.adjuntos.filter((a) => a.tipo === "imagen");
+  const videos = aviso.adjuntos.filter((a) => a.tipo === "video");
 
   const blocks: unknown[] = [
-    {
-      type: "section",
-      text: { type: "mrkdwn", text: `:beetle: *Nuevo bug en ${aviso.producto}*` },
-    },
-    {
-      type: "section",
-      text: { type: "mrkdwn", text: `*${aviso.tituloIssue}*\n${descCorta || "_(sin descripción)_"}` },
-    },
+    { type: "section", text: { type: "mrkdwn", text: `:beetle: *Nuevo bug en ${aviso.producto}*` } },
+    { type: "section", text: { type: "mrkdwn", text: `*${aviso.tituloIssue}*\n${descCorta || "_(sin descripción)_"}` } },
   ];
 
-  if (aviso.numAdjuntos > 0) {
+  // Imágenes incrustadas directamente en el mensaje.
+  for (const img of imagenes.slice(0, 5)) {
+    blocks.push({ type: "image", image_url: img.url, alt_text: img.nombre });
+  }
+  // Vídeos como enlace.
+  if (videos.length > 0) {
     blocks.push({
       type: "context",
       elements: [
-        { type: "mrkdwn", text: `:paperclip: ${aviso.numAdjuntos} adjunto(s) (en el issue)` },
+        { type: "mrkdwn", text: `:movie_camera: ${videos.map((v) => `<${v.url}|${v.nombre}>`).join("  ·  ")}` },
       ],
     });
   }
 
   blocks.push(
+    // Quién reporta (mencionado para poder escribirle por DM) en su propia línea.
     {
       type: "context",
       elements: [
-        {
-          type: "mrkdwn",
-          // Quién reporta (mencionado si está en Slack) para poder escribirle por DM.
-          text: `:bust_in_silhouette: Reporta ${quienReporta} (${aviso.reporterEmail})${menciones ? `  ·  cc ${menciones}` : ""}`,
-        },
-      ],
-    },
-    {
-      type: "actions",
-      elements: [
-        {
-          type: "button",
-          text: { type: "plain_text", text: "Ver issue en GitHub", emoji: true },
-          url: aviso.urlIssue,
-        },
+        { type: "mrkdwn", text: `:bust_in_silhouette: Reporta ${quienReporta} (${aviso.reporterEmail})` },
       ],
     }
   );
+  // Menciones a los devs en línea aparte (sin "cc").
+  if (menciones) {
+    blocks.push({ type: "section", text: { type: "mrkdwn", text: menciones } });
+  }
+  blocks.push({
+    type: "actions",
+    elements: [
+      { type: "button", text: { type: "plain_text", text: "Ver issue en GitHub", emoji: true }, url: aviso.urlIssue },
+    ],
+  });
 
   const res = await client.chat.postMessage({
     channel: canal,
@@ -121,6 +137,13 @@ export async function avisarNuevoBug(aviso: AvisoSlack): Promise<MensajeSlack> {
   } catch {
     permalink = null;
   }
+
+  // Abre el hilo de seguimiento: aquí caerán el estado, el análisis de la IA y los comentarios.
+  await responderEnHilo(
+    res.channel,
+    res.ts,
+    ":thread: *Seguimiento y actualizaciones* — aquí se registran el estado y el análisis de la IA. Comentad lo que haga falta."
+  );
 
   return { channel: res.channel, ts: res.ts, permalink };
 }
