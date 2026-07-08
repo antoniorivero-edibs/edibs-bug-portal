@@ -1,0 +1,26 @@
+@import "tailwindcss";
+
+:root {
+  --fondo: #0b0d12;
+  --superficie: #14171f;
+  --borde: #262b36;
+  --texto: #e6e8ec;
+  --texto-suave: #9aa1ad;
+  --acento: #4f8cff;
+}
+
+@theme inline {
+  --color-fondo: var(--fondo);
+  --color-superficie: var(--superficie);
+  --color-borde: var(--borde);
+  --color-texto: var(--texto);
+  --color-texto-suave: var(--texto-suave);
+  --color-acento: var(--acento);
+}
+
+html,
+body {
+  background: var(--fondo);
+  color: var(--texto);
+  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
