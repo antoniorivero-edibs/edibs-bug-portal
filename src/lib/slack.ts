@@ -234,11 +234,18 @@ export async function marcarSugerenciaAsignada(
     text: `Sugerencia en ${datos.producto} asignada`,
     blocks: [
       { type: "section", text: { type: "mrkdwn", text: `:bulb: *Sugerencia en ${datos.producto}*` } },
-      { type: "section", text: { type: "mrkdwn", text: `<${datos.urlIssue}|${datos.tituloIssue}>` } },
+      { type: "section", text: { type: "mrkdwn", text: `*${datos.tituloIssue}*` } },
       {
         type: "context",
         elements: [
           { type: "mrkdwn", text: `:raising_hand: Asignada a <@${datos.asignadoSlackId}>  ·  sugerida por *${datos.reporter}* (${datos.reporterEmail})` },
+        ],
+      },
+      // Se quita el botón "Me la quedo" pero se conserva el de "Ver issue".
+      {
+        type: "actions",
+        elements: [
+          { type: "button", text: { type: "plain_text", text: "Ver issue", emoji: true }, url: datos.urlIssue },
         ],
       },
     ],
