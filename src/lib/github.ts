@@ -57,6 +57,8 @@ export type NuevoIssue = {
   titulo: string;
   cuerpo: string;
   asignados?: string[];
+  // Issue type de la org (p. ej. "Bug" o "Feature"). Es un campo de primera clase, no una label.
+  tipoGithub?: string;
 };
 
 export type IssueCreado = {
@@ -65,7 +67,7 @@ export type IssueCreado = {
 };
 
 // Crea el issue en el repo del producto vía la GitHub App.
-export async function crearIssue({ repo, titulo, cuerpo, asignados }: NuevoIssue): Promise<IssueCreado> {
+export async function crearIssue({ repo, titulo, cuerpo, asignados, tipoGithub }: NuevoIssue): Promise<IssueCreado> {
   const octokit = octokitApp();
   const { data } = await octokit.rest.issues.create({
     owner: env.githubOrg(),
@@ -74,7 +76,9 @@ export async function crearIssue({ repo, titulo, cuerpo, asignados }: NuevoIssue
     body: cuerpo,
     // Si algún usuario no tiene acceso al repo, GitHub lo ignora sin fallar.
     assignees: asignados,
-  });
+    // Issue type de la org (Bug/Feature). El campo `type` no está tipado aún en Octokit.
+    ...(tipoGithub ? { type: tipoGithub } : {}),
+  } as Parameters<typeof octokit.rest.issues.create>[0]);
   return { numero: data.number, url: data.html_url };
 }
 

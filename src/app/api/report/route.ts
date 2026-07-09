@@ -94,15 +94,18 @@ export async function POST(request: NextRequest) {
       titulo,
       cuerpo,
       asignados: esSugerencia ? [] : producto.asignados,
+      // Issue type de la org: sugerencia -> Feature, bug -> Bug.
+      tipoGithub: esSugerencia ? "Feature" : "Bug",
     });
   } catch (err) {
     console.error("Error creando issue:", err);
     return NextResponse.json({ error: "No se pudo crear el issue en GitHub." }, { status: 502 });
   }
 
-  // 6. Labels base. Bug: portal (+ las de Claude luego). Sugerencia: portal + enhancement.
+  // 6. Label base del portal (igual para bug y sugerencia). El tipo va como issue type,
+  //    no como label. Las labels de categoría las añade Claude en el triaje (solo bugs).
   try {
-    await aplicarLabels(repo, issue.numero, esSugerencia ? [LABEL_PORTAL, "enhancement"] : [LABEL_PORTAL]);
+    await aplicarLabels(repo, issue.numero, [LABEL_PORTAL]);
   } catch (err) {
     console.error("Error aplicando las labels:", err);
   }
