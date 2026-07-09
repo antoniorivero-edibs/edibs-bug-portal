@@ -225,9 +225,11 @@ export async function avisarNuevaSugerencia(aviso: AvisoSugerencia): Promise<Men
 export async function marcarSugerenciaAsignada(
   channel: string,
   ts: string,
-  datos: { producto: string; tituloIssue: string; urlIssue: string; reporter: string; reporterEmail: string; asignadoSlackId: string }
+  datos: { producto: string; tituloIssue: string; urlIssue: string; reporter: string; reporterEmail: string; reporterSlackId?: string | null; asignadoSlackId: string }
 ): Promise<void> {
   const client = slack();
+  // Menciona a quien la sugirió si se conoce su Slack (igual que en el aviso original).
+  const quienSugiere = datos.reporterSlackId ? `<@${datos.reporterSlackId}>` : `*${datos.reporter}*`;
   await client.chat.update({
     channel,
     ts,
@@ -238,7 +240,13 @@ export async function marcarSugerenciaAsignada(
       {
         type: "context",
         elements: [
-          { type: "mrkdwn", text: `:raising_hand: Asignada a <@${datos.asignadoSlackId}>  ·  sugerida por *${datos.reporter}* (${datos.reporterEmail})` },
+          { type: "mrkdwn", text: `:bust_in_silhouette: Sugerida por ${quienSugiere} (${datos.reporterEmail})` },
+        ],
+      },
+      {
+        type: "context",
+        elements: [
+          { type: "mrkdwn", text: `:raising_hand: Asignada a <@${datos.asignadoSlackId}>` },
         ],
       },
       // Se quita el botón "Me la quedo" pero se conserva el de "Ver issue".
