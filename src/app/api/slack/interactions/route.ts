@@ -76,7 +76,7 @@ export async function POST(request: NextRequest) {
     const admin = crearClienteAdmin();
     const { data: reporte } = await admin
       .from("reportes")
-      .select("titulo, issue_url, reporter_nombre, reporter_email")
+      .select("titulo, issue_url, reporter_nombre, reporter_email, reporter_slack_id")
       .eq("repo", repo)
       .eq("issue_number", numero)
       .maybeSingle();
@@ -94,6 +94,7 @@ export async function POST(request: NextRequest) {
         urlIssue: reporte.issue_url,
         reporter: reporte.reporter_nombre ?? reporte.reporter_email,
         reporterEmail: reporte.reporter_email,
+        reporterSlackId: reporte.reporter_slack_id ?? null,
         asignadoSlackId: slackUserId,
       });
     }
