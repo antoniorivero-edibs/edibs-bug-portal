@@ -117,7 +117,7 @@ Bloques, en orden:
 
 ### 4.2 Hilo de seguimiento (respuesta al aviso)
 Se abre automáticamente con:
-```
+```text
 🧵 Seguimiento y actualizaciones — aquí se registran el estado y el análisis de la IA. Comentad lo que haga falta.
 ```
 Dentro del hilo caen, según pasan:

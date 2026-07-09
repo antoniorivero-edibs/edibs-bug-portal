@@ -55,7 +55,12 @@ export default async function PanelPage({
   } catch {
     errorRepos = true;
   }
-  const filas = await listarProductosDB();
+  let filas: Awaited<ReturnType<typeof listarProductosDB>> = [];
+  try {
+    filas = await listarProductosDB();
+  } catch {
+    errorRepos = true;
+  }
   const porRepo = new Map(filas.map((f) => [f.repo, f]));
 
   const inicial: ProductoInicial[] = repos.map((r) => {
@@ -71,13 +76,14 @@ export default async function PanelPage({
   });
 
   const admin = crearClienteAdmin();
-  const { data: bugsData } = await admin
+  const { data: bugsData, error: errorBugs } = await admin
     .from("reportes")
     .select(
       "repo, issue_number, titulo, estado, reporter_email, reporter_nombre, reporter_slack_id, issue_url, descripcion, adjuntos, navegador, url_origen, slack_permalink, ia_triaje, ia_investigacion, ia_triaje_url, ia_investigacion_url, creado_en"
     )
     .order("creado_en", { ascending: false })
     .limit(200);
+  if (errorBugs) console.error("Error cargando bugs en el panel:", errorBugs);
   const bugs = (bugsData ?? []) as unknown as BugPanel[];
   const iaOn = iaConfigurada();
 

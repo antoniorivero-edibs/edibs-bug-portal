@@ -3,10 +3,10 @@ import { listarProductos } from "@/lib/productos-db";
 import type { Producto } from "@/lib/products";
 import IdentityGate from "@/components/identity-gate";
 
-// Siempre en vivo: la lista de productos sale de la GitHub App en cada visita.
+// Siempre en vivo: la lista de productos sale de la tabla `productos` en cada visita.
 export const dynamic = "force-dynamic";
 
-// La lista de productos depende de la GitHub App; si aún no está configurada,
+// La lista de productos es la tabla `productos` (curada desde /admin). Si falla la consulta,
 // mostramos un aviso en vez de romper la página.
 async function cargarProductos(): Promise<{ productos: Producto[]; error: string | null }> {
   try {
@@ -15,7 +15,7 @@ async function cargarProductos(): Promise<{ productos: Producto[]; error: string
   } catch {
     return {
       productos: [],
-      error: "No se pudieron cargar los productos. Falta configurar la GitHub App o su instalación.",
+      error: "No se pudieron cargar los productos. Revisa la conexión con la base de datos.",
     };
   }
 }
@@ -38,8 +38,8 @@ export default async function HomePage() {
 
       {!error && productos.length === 0 && (
         <div className="rounded-[var(--radius-card)] border border-[var(--color-borde)] bg-[var(--color-surface-soft)] p-4 text-sm text-[var(--color-texto-muted)]">
-          No hay productos con el topic <code className="font-semibold">bug-portal</code> todavía. Pon
-          el topic a un repo para que aparezca aquí.
+          No hay productos activos todavía. Actívalos desde el panel de administración (
+          <code className="font-semibold">/admin</code>).
         </div>
       )}
 

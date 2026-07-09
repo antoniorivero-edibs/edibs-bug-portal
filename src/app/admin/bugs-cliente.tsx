@@ -42,7 +42,7 @@ function EstadoBadge({ estado }: { estado: string }) {
 function ChipIA({ label, done, url, iaOn }: { label: string; done: boolean; url: string | null; iaOn: boolean }) {
   if (url) {
     return (
-      <a href={url} target="_blank" className={`${CHIP} bg-[var(--color-surface-strong)] text-[var(--color-navy)] hover:bg-[var(--color-action)] hover:text-white`}>
+      <a href={url} target="_blank" rel="noopener noreferrer" className={`${CHIP} bg-[var(--color-surface-strong)] text-[var(--color-navy)] hover:bg-[var(--color-action)] hover:text-white`}>
         {label} ↗
       </a>
     );
@@ -69,7 +69,7 @@ function Reporter({ bug }: { bug: BugPanel }) {
       )}
       <div className="text-[var(--color-texto-muted)]">{bug.reporter_email}</div>
       {bug.reporter_slack_id && (
-        <a href={enlaceDM(bug.reporter_slack_id)} target="_blank" className="text-[var(--color-action)] hover:underline">
+        <a href={enlaceDM(bug.reporter_slack_id)} target="_blank" rel="noopener noreferrer" className="text-[var(--color-action)] hover:underline">
           Escribir por Slack ↗
         </a>
       )}
@@ -130,7 +130,7 @@ export default function BugsCliente({ bugs, iaOn }: { bugs: BugPanel[]; iaOn: bo
               </td>
               <td className={`${TD} whitespace-nowrap`}>
                 {b.slack_permalink ? (
-                  <a href={b.slack_permalink} target="_blank" className={`${CHIP} bg-[var(--color-surface-strong)] text-[var(--color-navy)] hover:bg-[var(--color-action)] hover:text-white`}>
+                  <a href={b.slack_permalink} target="_blank" rel="noopener noreferrer" className={`${CHIP} bg-[var(--color-surface-strong)] text-[var(--color-navy)] hover:bg-[var(--color-action)] hover:text-white`}>
                     Slack ↗
                   </a>
                 ) : (
@@ -146,7 +146,7 @@ export default function BugsCliente({ bugs, iaOn }: { bugs: BugPanel[]; iaOn: bo
               <td className={`${TD} whitespace-nowrap`}>
                 <a
                   href={b.issue_url}
-                  target="_blank"
+                  target="_blank" rel="noopener noreferrer"
                   className={`${CHIP} bg-[var(--color-surface-strong)] text-[var(--color-navy)] hover:bg-[var(--color-action)] hover:text-white`}
                 >
                   #{b.issue_number} ↗
@@ -180,7 +180,7 @@ function DetalleBug({ bug, onCerrar }: { bug: BugPanel; onCerrar: () => void }) 
   const Enlace = ({ href, children }: { href: string; children: React.ReactNode }) => (
     <a
       href={href}
-      target="_blank"
+      target="_blank" rel="noopener noreferrer"
       className="rounded-[var(--radius-pill)] bg-[var(--color-surface-strong)] px-3 py-1 text-sm font-medium text-[var(--color-navy)] transition-colors hover:bg-[var(--color-action)] hover:text-white"
     >
       {children}
@@ -212,7 +212,7 @@ function DetalleBug({ bug, onCerrar }: { bug: BugPanel; onCerrar: () => void }) 
               {bug.reporter_slack_id && (
                 <>
                   {" · "}
-                  <a href={enlaceDM(bug.reporter_slack_id)} target="_blank" className="text-[var(--color-action)] hover:underline">
+                  <a href={enlaceDM(bug.reporter_slack_id)} target="_blank" rel="noopener noreferrer" className="text-[var(--color-action)] hover:underline">
                     escribir por Slack ↗
                   </a>
                 </>
@@ -233,7 +233,7 @@ function DetalleBug({ bug, onCerrar }: { bug: BugPanel; onCerrar: () => void }) 
               <h4 className="mt-6 text-sm font-semibold text-[var(--color-navy)]">Imágenes</h4>
               <div className="mt-2 grid grid-cols-2 gap-2">
                 {imagenes.map((a) => (
-                  <a key={a.url} href={a.url} target="_blank">
+                  <a key={a.url} href={a.url} target="_blank" rel="noopener noreferrer">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img src={a.url} alt={a.nombre} className="max-h-48 w-full rounded-[var(--radius-sm)] border border-[var(--color-borde)] object-cover" />
                   </a>
@@ -248,7 +248,7 @@ function DetalleBug({ bug, onCerrar }: { bug: BugPanel; onCerrar: () => void }) 
               <ul className="mt-1 space-y-1 text-sm">
                 {videos.map((a) => (
                   <li key={a.url}>
-                    <a href={a.url} target="_blank" className="text-[var(--color-action)] underline">
+                    <a href={a.url} target="_blank" rel="noopener noreferrer" className="text-[var(--color-action)] underline">
                       {a.nombre}
                     </a>
                   </li>
