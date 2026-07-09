@@ -10,19 +10,19 @@ export async function GET(request: NextRequest) {
   const stateCookie = request.cookies.get("edibs-panel-state")?.value;
 
   if (!code || !state || !stateCookie || state !== stateCookie) {
-    return NextResponse.redirect(`${origin}/panel?error=state`);
+    return NextResponse.redirect(`${origin}/admin?error=state`);
   }
 
   const login = await loginDesdeCodigo(code);
   if (!login) {
-    return NextResponse.redirect(`${origin}/panel?error=github`);
+    return NextResponse.redirect(`${origin}/admin?error=github`);
   }
 
   if (!(await accesoPermitido(login))) {
-    return NextResponse.redirect(`${origin}/panel?error=no_org`);
+    return NextResponse.redirect(`${origin}/admin?error=no_org`);
   }
 
-  const res = NextResponse.redirect(`${origin}/panel`);
+  const res = NextResponse.redirect(`${origin}/admin`);
   res.cookies.set(COOKIE_SESION, crearSesion(login), {
     httpOnly: true,
     secure: true,

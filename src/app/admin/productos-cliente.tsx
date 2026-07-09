@@ -269,7 +269,7 @@ export default function ProductosCliente({ inicial }: { inicial: ProductoInicial
               Descripción · <span className="font-mono text-xs">{editando}</span>
             </h4>
             <p className="mt-1 text-xs text-[var(--color-texto-muted)]">
-              Se sincroniza con la descripción del repo en GitHub al guardar.
+              Al guardar se aplica y se sincroniza con la descripción del repo en GitHub.
             </p>
             <textarea
               autoFocus
@@ -278,9 +278,19 @@ export default function ProductosCliente({ inicial }: { inicial: ProductoInicial
               rows={4}
               className="mt-3 w-full rounded-[var(--radius-sm)] border border-[var(--color-borde)] px-3 py-2 text-sm outline-none focus:border-[var(--color-action)]"
             />
-            <div className="mt-4 flex justify-end">
-              <button onClick={() => setEditando(null)} className={BTN_PRIMARIO}>
-                Hecho
+            <div className="mt-4 flex justify-end gap-2">
+              <button onClick={() => setEditando(null)} className={BTN_SECUNDARIO} disabled={guardando}>
+                Cancelar
+              </button>
+              <button
+                onClick={async () => {
+                  await guardar();
+                  setEditando(null);
+                }}
+                disabled={guardando}
+                className={BTN_PRIMARIO}
+              >
+                {guardando ? "Guardando…" : "Guardar descripción"}
               </button>
             </div>
           </div>
