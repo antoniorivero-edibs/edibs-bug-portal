@@ -1,53 +1,79 @@
 # Flujo, estados y estructuras (referencia)
 
-Referencia de todo lo que produce el portal: el flujo completo, los estados, cómo queda un issue en GitHub y todos los mensajes de Slack. Para revisión del equipo.
+Referencia de todo lo que produce el portal: flujo completo, estados, cómo queda un issue en GitHub y todos los mensajes de Slack (bugs y sugerencias). Para revisión del equipo.
 
 ---
 
-## 1. Flujo completo (de reporte a resuelto)
+## 1. Tipos de reporte
 
-1. La persona entra al portal, se identifica (**nombre + correo**, validado por dominio; sin verificación).
-2. Elige **producto** (los `visible=true` de la tabla `productos`) y rellena **título + descripción + adjuntos**.
-3. Los adjuntos suben **directos a Supabase Storage** con URL firmada (bucket `adjuntos`, público en lectura).
+El portal maneja dos tipos, elegidos por quien reporta antes de rellenar nada:
+
+| Tipo | Qué es | Ruta |
+| --- | --- | --- |
+| **🐞 Bug** | Algo que no funciona como debería | `/report/[repo]/bug` |
+| **💡 Sugerencia** | Una función, cambio o mejora (no un error) | `/report/[repo]/sugerencia` |
+
+En `/report/[repo]` se elige el tipo (no se muestra formulario hasta elegir, para no enviar en el que no es).
+
+Diferencias de tratamiento:
+
+| | Bug | Sugerencia |
+| --- | --- | --- |
+| Labels | `portal` + las que decide Claude | `portal` + `enhancement` |
+| Asignados | Antonio y Ángel | **Sin asignar** (se autoasigna con el botón de Slack) |
+| Análisis IA (triaje + investigación) | Sí | **No** |
+| Aviso en Slack | Con menciones a los devs | **Sin mención**, con botón "🙋 Me la quedo" |
+| Hilo de seguimiento | Sí | Sí |
+
+**Reparto de responsabilidades:** Slack = para que lo veáis las personas. GitHub issue = para el análisis técnico (dev + Claude Code).
+
+---
+
+## 2. Flujo completo
+
+1. La persona entra al portal, se identifica (**nombre + correo**, validado por dominio en servidor; sin verificación).
+2. Elige **producto** (los `visible=true` de la tabla `productos`) y luego **tipo** (bug o sugerencia).
+3. Rellena **título + descripción + adjuntos**. Los adjuntos suben directos a Supabase Storage con URL firmada (bucket `adjuntos`, público en lectura).
 4. `POST /api/report` (servidor):
-   1. Valida sesión-de-dominio, producto y adjuntos.
-   2. Crea el **issue en GitHub** (vía GitHub App) con cuerpo formateado y **asignado** a los devs.
-   3. Aplica la label **`portal`** (la crea si no existe).
+   1. Valida identidad (dominio), producto y adjuntos.
+   2. Crea el **issue en GitHub** (GitHub App) con cuerpo formateado. Bug: asignado a los devs. Sugerencia: sin asignar.
+   3. Aplica labels: `portal` (bug) o `portal` + `enhancement` (sugerencia).
    4. Resuelve el **usuario de Slack del reporter** por su correo (`users.lookupByEmail`).
-   5. Publica el **aviso en Slack** (`#bug-portal`) y abre un **hilo de seguimiento**.
-   6. Guarda todo en la tabla **`reportes`** (mapeo issue ↔ Slack + detalle).
+   5. Publica el **aviso en Slack** (`bug-portal`) y abre un **hilo de seguimiento**.
+   6. Guarda todo en la tabla **`reportes`**.
    7. **Responde al instante** al navegador (pantalla de gracias, sin enlaces internos).
-5. **En segundo plano** (`after()`), si hay `ANTHROPIC_API_KEY`, Claude:
-   1. **Triaje** (solo texto): comenta en el issue, aplica labels de categoría y lo vuelca al hilo de Slack.
-   2. **Investigación** (lee el repo): comenta en el issue (causa probable + ficheros candidatos) y lo vuelca al hilo.
-6. Cuando el issue se **cierra/reabre** en GitHub → webhook → actualiza el aviso de Slack (Resuelto/Reabierto) y el estado en `reportes`, y lo anota en el hilo.
-
-**Reparto de responsabilidades:** Slack = para que lo veáis las personas (aviso completo + hilo). GitHub issue = para el análisis técnico (dev + Claude Code).
+5. **En segundo plano** (`after()`), solo para bugs y si hay `ANTHROPIC_API_KEY`, Claude:
+   1. **Triaje**: comenta en el issue, aplica labels de categoría y lo vuelca al hilo de Slack.
+   2. **Investigación**: lee el repo, comenta causa probable + ficheros candidatos y lo vuelca al hilo.
+6. **Sugerencia**: cuando alguien del equipo pulsa "Me la quedo" en Slack → se le asigna el issue en GitHub, se guarda en `reportes` y el mensaje se edita (quita el botón, muestra el asignado).
+7. Cuando el issue se **cierra/reabre** en GitHub → webhook → actualiza el aviso de Slack, el estado en `reportes` y lo anota en el hilo.
 
 ---
 
-## 2. Estados
+## 3. Estados
 
 | Cosa | Dónde | Valores |
 | --- | --- | --- |
-| Estado del bug | `reportes.estado` | `abierto` / `cerrado` (sincronizado por el webhook con GitHub) |
+| Tipo | `reportes.tipo` | `bug` / `sugerencia` |
+| Estado del reporte | `reportes.estado` | `abierto` / `cerrado` (sincronizado por el webhook) |
 | Issue en GitHub | GitHub | `open` / `closed` (+ evento `reopened`) |
-| Triaje IA | `reportes.ia_triaje` (+ `ia_triaje_url`) | `false` → `true` cuando Claude comenta |
-| Investigación IA | `reportes.ia_investigacion` (+ `ia_investigacion_url`) | `false` → `true` cuando Claude comenta |
-| Slack | `reportes.slack_ts` / `slack_permalink` | `null` si Slack no estaba configurado o falló; con valor si se avisó |
+| Triaje IA (solo bugs) | `reportes.ia_triaje` (+ `ia_triaje_url`) | `false` → `true` cuando Claude comenta |
+| Investigación IA (solo bugs) | `reportes.ia_investigacion` (+ `ia_investigacion_url`) | `false` → `true` cuando Claude comenta |
+| Slack | `reportes.slack_ts` / `slack_permalink` | `null` si Slack no configurado o falló; con valor si se avisó |
 | Reporter en Slack | `reportes.reporter_slack_id` | ID (`U…`) si se encontró por correo; `null` si no |
+| Asignado (sugerencias) | `reportes.asignado_github` / `asignado_slack` | `null` hasta que alguien pulsa "Me la quedo" |
 | Producto | `productos.visible` | `true` (aparece en el portal) / `false` (oculto) |
 
-En el panel, los chips de IA muestran: `✓` (hecho, con enlace al comentario), `pendiente` (IA activa pero aún no terminó) u `off` (sin `ANTHROPIC_API_KEY`).
+En el panel `/admin`, los chips de IA muestran: `✓` (hecho, con enlace al comentario), `pendiente` (IA activa, aún no terminó) u `off` (sin `ANTHROPIC_API_KEY`). Las sugerencias muestran el asignado (o "sin asignar").
 
 ---
 
-## 3. GitHub
+## 4. GitHub
 
-### 3.1 Cuerpo del issue
+### 4.1 Cuerpo del issue
 
 ```markdown
-## Descripción
+## Descripción            (o "## Sugerencia" si es sugerencia)
 <texto tal cual lo escribió la persona>
 
 ## Adjuntos
@@ -65,93 +91,107 @@ En el panel, los chips de IA muestran: `✓` (hecho, con enlace al comentario), 
 | **Navegador** | Mozilla/5.0 … |
 ```
 
-### 3.2 Labels
-- **`portal`**: se aplica siempre (creada automáticamente).
-- **Categoría/área**: las decide Claude en el triaje (p. ej. `frontend`, `auth`, `datos`…). Se crean solas si no existen. Vocabulario base sugerido en `src/lib/products.ts` (`CATEGORIAS_SUGERIDAS`), pero Claude puede añadir otras.
+### 4.2 Labels
+- **`portal`**: siempre.
+- **`enhancement`**: solo sugerencias.
+- **Categoría/área** (solo bugs): las decide Claude en el triaje (`frontend`, `auth`, `datos`…). Se crean solas si no existen. Base sugerida en `src/lib/products.ts` (`CATEGORIAS_SUGERIDAS`).
 
-### 3.3 Asignados
-`antoniorivero-edibs` y `adominguez-edibs` (configurable en `src/lib/products.ts`).
+### 4.3 Asignados
+- **Bug**: `antoniorivero-edibs` y `adominguez-edibs`.
+- **Sugerencia**: sin asignar; se asigna quien pulsa "Me la quedo" (solo equipo, mapa Slack→GitHub en `products.ts`).
 
-### 3.4 Comentario 1 — Triaje (IA)
+### 4.4 Comentarios de IA (solo bugs)
+
+Comentario 1 — Triaje:
 ```markdown
 ## 🔎 Triaje automático
 
-**Resumen:** …
-**Qué ocurre:** …
-**Severidad sugerida:** media — <justificación>
-**Categoría / etiquetas:** frontend, datos
+### 📝 Resumen
+…
 
-_Análisis automático (IA). La severidad es una sugerencia; el equipo decide al triar._
+### 🐞 Qué ocurre
+…
+
+### 🚦 Severidad sugerida
+🟡 media — <justificación>            (🟢 baja · 🟡 media · 🟠 alta · 🔴 crítica)
+
+### 🏷️ Categoría / etiquetas
+frontend, datos
 ```
 
-### 3.5 Comentario 2 — Investigación (IA)
-```markdown
-## 🧭 Investigación del código
+Comentario 2 — Investigación (`### 🎯 Causa probable`, `### 📂 Ficheros / áreas candidatas`, `### 🛠️ Para el dev`).
 
-**Causa probable:** …
-**Ficheros / áreas candidatas:**
-- [src/components/Dashboard.tsx](https://github.com/…/blob/HEAD/src/components/Dashboard.tsx) — …
-**Para el dev:** …
-
-_Análisis automático (IA) leyendo el repositorio. Puede contener errores; verifícalo antes de asumirlo._
-```
-
-### 3.6 Webhook consumido
-Evento **`issues`**, acciones `closed` y `reopened` (el resto se ignoran). Firma validada con `GITHUB_WEBHOOK_SECRET`.
+### 4.5 Webhook consumido
+Evento **`issues`**, acciones `closed` y `reopened`. Firma validada con `GITHUB_WEBHOOK_SECRET`.
 
 ---
 
-## 4. Slack
+## 5. Slack
 
-Canal: **`bug-portal`** (`SLACK_BUG_CHANNEL` = ID `C0BFWS9EPJN`).
+Canal: **`bug-portal`** (`SLACK_BUG_CHANNEL` = ID `C0BFWS9EPJN`). Todos los mensajes cuelgan de este canal; el análisis de IA y los cambios de estado se anotan en el **hilo** del aviso.
 
-### 4.1 Aviso principal (nuevo bug)
-Bloques, en orden:
+### 5.1 Aviso de bug (nuevo)
 1. `:beetle: *Nuevo bug en <producto>*`
-2. `*<título>*` + descripción (hasta ~2500 car.)
-3. **Imágenes** incrustadas (bloques `image`, hasta 5)
-4. (si hay vídeos) `:movie_camera: <url|nombre> · …`
-5. `:bust_in_silhouette: Reporta <@reporter> (correo)`  ← línea propia
-6. `<@dev1> <@dev2>`  ← menciones a los devs, línea aparte (sin "cc")
-7. Botón **"Ver issue en GitHub"**
+2. `*<título>*` + descripción
+3. Imágenes incrustadas (hasta 5) · vídeos como enlace
+4. `:bust_in_silhouette: Reporta <@reporter> (correo)` (mención si está en Slack)
+5. `<@dev1> <@dev2>` (menciones a los devs, sin "cc")
+6. Botón **"Ver issue en GitHub"**
 
-### 4.2 Hilo de seguimiento (respuesta al aviso)
+### 5.2 Aviso de sugerencia (nuevo)
+1. `:bulb: *Nueva sugerencia en <producto>*`
+2. `*<título>*` + descripción
+3. Imágenes incrustadas (hasta 5)
+4. `:bust_in_silhouette: Sugerida por <@reporter> (correo)` (sin mención a devs)
+5. Botones: **"🙋 Me la quedo"** + **"Ver issue en GitHub"**
+
+### 5.3 Sugerencia asignada (tras pulsar "Me la quedo")
+El mensaje se edita:
+1. `:bulb: *Sugerencia en <producto>*`
+2. `*<título>*`
+3. `:raising_hand: Asignada a <@asignado> · sugerida por *<reporter>* (correo)`
+4. Botón **"Ver issue en GitHub"** (se quita "Me la quedo")
+
+### 5.4 Hilo de seguimiento
 Se abre automáticamente con:
 ```text
 🧵 Seguimiento y actualizaciones — aquí se registran el estado y el análisis de la IA. Comentad lo que haga falta.
 ```
-Dentro del hilo caen, según pasan:
-- **Triaje de la IA** (contenido del comentario, convertido a formato Slack).
-- **Investigación de la IA** (idem).
-- Al cerrar: `✅ *Resuelto* (issue cerrado)`. Al reabrir: `🔄 *Reabierto*`.
-- Vuestros mensajes/seguimiento manual.
+Dentro caen: análisis de IA (bugs), `✅ Resuelto` / `🔄 Reabierto`, y vuestros mensajes.
 
-### 4.3 Aviso al resolver/reabrir (edición del mensaje principal)
-El mensaje principal se **edita** a una versión corta:
-- Resuelto: `:white_check_mark: *Resuelto - <producto>*` + `<url|título>`
-- Reabierto: vuelve a `:beetle: *Nuevo bug en <producto>*` + `<url|título>`
+### 5.5 Estado: cerrado / reabierto (edición del aviso principal)
+- **Cerrado** (limpio, sin botón, para distinguirlo del abierto):
+  - Bug: `:white_check_mark: *Resuelto - <producto>*` + `<url|título>`
+  - Sugerencia: `:white_check_mark: *Sugerencia resuelta - <producto>*` + `<url|título>`
+- **Reabierto** (vuelve la cabecera de abierto + botón "Ver issue en GitHub"):
+  - Bug: `:beetle: *Nuevo bug en <producto>*`
+  - Sugerencia: `:bulb: *Sugerencia en <producto>*`
+  - **Nota**: al reabrir se recupera el botón "Ver issue en GitHub", pero **no** las imágenes, menciones ni el botón "Me la quedo" del mensaje original (esos datos no se reconstruyen).
 
 ---
 
-## 5. ¿Qué pasa si NO se encuentra al usuario en Slack?
+## 6. ¿Qué pasa si NO se encuentra al usuario en Slack?
 
-`users.lookupByEmail` puede no encontrarlo (correo distinto al de Slack, invitado externo, o Slack sin configurar). En ese caso, **todo sigue funcionando**, solo cambia lo relativo a ese usuario:
+`users.lookupByEmail` puede no encontrarlo (correo distinto al de Slack, invitado externo, Slack sin configurar). No se rompe nada; solo cambia lo relativo a ese usuario:
 
-| Efecto | Con Slack encontrado | Sin encontrar (`reporter_slack_id = null`) |
+| Efecto | Slack encontrado | Sin encontrar (`reporter_slack_id = null`) |
 | --- | --- | --- |
-| Aviso en Slack | Se publica igual | Se publica igual |
-| "Reporta …" en el mensaje | Mención **@usuario** (clicable) | Solo el **nombre en negrita** (sin mención) |
-| Menciones a los devs | Sí | Sí (son IDs fijos, no dependen del reporter) |
-| "Escribir por Slack" en el panel | Aparece (DM directo) | **No aparece** (solo nombre + correo) |
-| Issue, labels, IA, estado | Igual | Igual |
+| Aviso en Slack | Igual | Igual |
+| "Reporta / Sugerida por …" | Mención `@usuario` | Solo nombre en negrita |
+| "Escribir por Slack" en el panel | Aparece (DM directo) | No aparece (solo nombre + correo) |
+| Issue, labels, IA, estado, botón | Igual | Igual |
 
-Es decir: no se rompe nada; simplemente se pierde el enlace/mención directa a esa persona en Slack. El correo siempre queda visible para contactarle por otra vía.
-
-Si Slack no está configurado (`SLACK_BOT_TOKEN` ausente): no hay aviso ni hilo (`slack_* = null`), pero el issue se crea igual y el portal funciona.
+Si Slack no está configurado (`SLACK_BOT_TOKEN` ausente): no hay aviso ni hilo (`slack_* = null`), pero el issue se crea igual.
 
 ---
 
-## Tablas de datos (Supabase)
+## 7. Tablas de datos (Supabase)
 
-- **`productos`**: `repo, alias, descripcion, visible, orden`. Fuente de la lista del portal (curada desde el panel).
-- **`reportes`**: `repo, issue_number, issue_url, titulo, estado, reporter_nombre, reporter_email, reporter_slack_id, descripcion, adjuntos(jsonb), navegador, url_origen, slack_channel, slack_ts, slack_permalink, ia_triaje(+_url), ia_investigacion(+_url), creado_en`.
+- **`productos`**: `repo, alias, descripcion, visible, orden`. Fuente de la lista del portal (curada desde `/admin`).
+- **`reportes`**: `repo, issue_number, issue_url, tipo, titulo, estado, reporter_nombre, reporter_email, reporter_slack_id, asignado_github, asignado_slack, descripcion, adjuntos(jsonb), navegador, url_origen, slack_channel, slack_ts, slack_permalink, ia_triaje(+_url), ia_investigacion(+_url), creado_en`.
+
+---
+
+## 8. Variables de entorno (resumen)
+
+Supabase (URL, anon, service role) · `NEXT_PUBLIC_ALLOWED_EMAIL_DOMAINS` · GitHub App (`GITHUB_APP_ID`, `GITHUB_APP_INSTALLATION_ID`, `GITHUB_APP_PRIVATE_KEY`, `GITHUB_WEBHOOK_SECRET`, `GITHUB_ORG`) · GitHub OAuth del panel (`GITHUB_APP_CLIENT_ID`, `GITHUB_APP_CLIENT_SECRET`, `PANEL_SESSION_SECRET`) · Slack (`SLACK_BOT_TOKEN`, `SLACK_BUG_CHANNEL`, `SLACK_SIGNING_SECRET`, `NEXT_PUBLIC_SLACK_TEAM_ID`) · IA (`ANTHROPIC_API_KEY`, `ANTHROPIC_MODEL`). Referencia completa en `.env.example`.

@@ -268,18 +268,25 @@ export async function actualizarEstadoBug(
       ? `:bulb: *Sugerencia en ${datos.producto}*`
       : `:beetle: *Nuevo bug en ${datos.producto}*`;
 
+  // Cerrado: limpio, solo cabecera + título como enlace, sin botón (se distingue del abierto).
+  // Reabierto: vuelve el botón "Ver issue en GitHub".
+  const blocks: unknown[] = resuelto
+    ? [{ type: "section", text: { type: "mrkdwn", text: `${cabecera}\n<${datos.urlIssue}|${datos.tituloIssue}>` } }]
+    : [
+        { type: "section", text: { type: "mrkdwn", text: `${cabecera}\n*${datos.tituloIssue}*` } },
+        {
+          type: "actions",
+          elements: [
+            { type: "button", text: { type: "plain_text", text: "Ver issue en GitHub", emoji: true }, url: datos.urlIssue },
+          ],
+        },
+      ];
+
   await client.chat.update({
     channel,
     ts,
     text: `${resuelto ? "Resuelto" : esSug ? "Sugerencia" : "Bug"} en ${datos.producto}: ${datos.tituloIssue}`,
-    blocks: [
-      { type: "section", text: { type: "mrkdwn", text: `${cabecera}\n*${datos.tituloIssue}*` } },
-      {
-        type: "actions",
-        elements: [
-          { type: "button", text: { type: "plain_text", text: "Ver issue en GitHub", emoji: true }, url: datos.urlIssue },
-        ],
-      },
-    ],
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    blocks: blocks as any,
   });
 }
