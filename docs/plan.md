@@ -10,8 +10,8 @@ Al reportar: se crea un issue en el repo del producto (con quién reporta, email
 
 ## Decisiones cerradas
 
-- **Login:** SSO. Nota: el SSO con Google necesita credenciales de Google Cloud, que ahora mismo no tenemos (mismo bloqueo que Metriks). Hasta tenerlas, se arranca con **magic link por email** (Supabase Auth), restringido a `@edibschool.com` / `@indexmediamarketing.com`. Da identidad verificada sin depender de Google Cloud, y se cambia a Google cuando haya acceso.
-- **Lista de productos:** dinámica pero curada, **por topic de GitHub**. El portal lista los repos de la org con el topic `bug-portal`. Añadir un producto = poner el topic al repo (cero cambios en el portal). Alias por defecto desde el nombre/descripción del repo, con mapa de overrides opcional.
+- **Login:** sin autenticación real, priorizando rapidez. El usuario pone **nombre + correo** (guardado en el navegador) y entra. Se valida que el correo sea de un dominio permitido (`@edibschool.com`, `@nuclio.school`, `@indexmediamarketing.com`), pero **no se envía nada ni se verifica el buzón**. Se asume el riesgo de que alguien use un correo ajeno. El nombre y correo se muestran en el issue y en el aviso de Slack para poder contactar a quien reporta.
+- **Lista de productos:** dinámica pero curada, **por topic de GitHub**. El portal lista los repos de la org con el topic `bug-portal`. Añadir un producto = poner el topic al repo (cero cambios en el portal). El nombre que ve el usuario es un **alias amigable**, no el nombre crudo del repo: por defecto se genera del nombre del repo (title case) y se puede fijar a mano en el mapa de overrides de `src/lib/products.ts`.
 - **Campos del form:** título, descripción, fotos/vídeos. La severidad y demás la pone el equipo al triar (etiquetas).
 - **Adjuntos:** hasta 5 archivos, 50 MB cada uno. Imágenes `png/jpg/webp/gif` (van incrustadas en el issue), vídeos `mp4/mov/webm` (van como enlace). Se suben a Supabase Storage.
 - **Slack:** canal `#bug`. Mención a los devs por producto (IDs de Slack: Antonio `U0BAU7N7ZSA`, Ángel `U0BC1RE5NUT`). Al cerrar el issue, el mensaje se actualiza a resuelto (no se borra, se marca).
@@ -28,7 +28,6 @@ Al reportar: se crea un issue en el repo del producto (con quién reporta, email
 ## Pendiente (en issues)
 
 - Análisis con IA: comentario automático que estructura el reporte (pasos, esperado/real, área, severidad sugerida) conservando el texto original. Con llamada directa a Claude, no CodeRabbit (que es para PRs). v2: que señale ficheros candidatos leyendo el repo.
-- Cambiar magic link por Google SSO cuando haya acceso a Google Cloud.
 - Mapa de overrides de alias/etiquetas por producto.
 
 ## Accesos necesarios (para desplegarlo)

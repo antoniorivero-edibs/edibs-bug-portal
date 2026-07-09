@@ -16,3 +16,7 @@ dist
 # Logs y varios
 *.log
 .DS_Store
+
+# Supabase (temporales y credenciales locales)
+supabase/.temp
+supabase/.branches

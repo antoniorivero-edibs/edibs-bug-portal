@@ -1,0 +1,4 @@
+project_id = "vktjjehjdpcliwxwjbzu"
+
+# El portal no usa Supabase Auth: el acceso es solo nombre + correo (gate por dominio en la app).
+# Supabase se usa para Storage (adjuntos) y la tabla `reportes`.
