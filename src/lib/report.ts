@@ -2,6 +2,13 @@
 
 export type TipoAdjunto = "imagen" | "video";
 
+// Tipo de reporte: bug (fallo) o sugerencia (función/cambio/mejora).
+export type TipoReporte = "bug" | "sugerencia";
+
+export function esTipoReporte(v: unknown): v is TipoReporte {
+  return v === "bug" || v === "sugerencia";
+}
+
 export type Adjunto = {
   nombre: string;
   url: string; // URL pública en Supabase Storage
@@ -54,12 +61,13 @@ export function construirCuerpoIssue(
   descripcion: string,
   adjuntos: Adjunto[],
   reporter: Reporter,
-  meta: MetaReporte
+  meta: MetaReporte,
+  tipo: TipoReporte = "bug"
 ): string {
   const partes: string[] = [];
 
-  // Descripción tal cual la escribió la persona.
-  partes.push("## Descripción");
+  // Texto tal cual lo escribió la persona (el encabezado cambia según el tipo).
+  partes.push(tipo === "sugerencia" ? "## Sugerencia" : "## Descripción");
   partes.push(descripcion.trim() || "_(Sin descripción)_");
 
   // Adjuntos: imágenes incrustadas, vídeos como enlace.

@@ -9,20 +9,51 @@ import {
   tipoPorNombre,
   type Adjunto,
   type TipoAdjunto,
+  type TipoReporte,
 } from "@/lib/report";
 
 const BUCKET = "adjuntos";
 
 type Estado = "idle" | "subiendo" | "enviando" | "ok" | "error";
 
+// Textos que cambian entre bug y sugerencia.
+const COPY: Record<TipoReporte, {
+  tituloPh: string;
+  descLabel: string;
+  descPh: string;
+  boton: string;
+  ok: string;
+  minDesc: number;
+}> = {
+  bug: {
+    tituloPh: "Resumen corto del bug",
+    descLabel: "Descripción",
+    descPh: "Qué pasa, qué esperabas, pasos para reproducirlo...",
+    boton: "Reportar",
+    ok: "Tu reporte se ha registrado correctamente y se ha avisado al equipo. Le echarán un vistazo lo antes posible.",
+    minDesc: 10,
+  },
+  sugerencia: {
+    tituloPh: "Resumen corto de la sugerencia",
+    descLabel: "¿Qué te gustaría?",
+    descPh: "Describe la función, el cambio o la mejora que propones y por qué sería útil...",
+    boton: "Enviar sugerencia",
+    ok: "Tu sugerencia se ha registrado correctamente. ¡Gracias por la idea!",
+    minDesc: 10,
+  },
+};
+
 export default function FormularioReporte({
   repo,
   nombreProducto,
+  tipo,
 }: {
   repo: string;
   nombreProducto: string;
+  tipo: TipoReporte;
 }) {
   const reporter = useReporter();
+  const copy = COPY[tipo];
   const [titulo, setTitulo] = useState("");
   const [descripcion, setDescripcion] = useState("");
   const [archivos, setArchivos] = useState<File[]>([]);
@@ -103,8 +134,8 @@ export default function FormularioReporte({
       setError("El título es demasiado corto.");
       return;
     }
-    if (descripcion.trim().length < 10) {
-      setError("Describe un poco más el problema (mínimo 10 caracteres).");
+    if (descripcion.trim().length < copy.minDesc) {
+      setError(`Describe un poco más (mínimo ${copy.minDesc} caracteres).`);
       return;
     }
 
@@ -118,6 +149,7 @@ export default function FormularioReporte({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           repo,
+          tipo,
           titulo: titulo.trim(),
           descripcion: descripcion.trim(),
           adjuntos,
@@ -141,10 +173,11 @@ export default function FormularioReporte({
   if (estado === "ok") {
     return (
       <div className="mt-6 rounded-[var(--radius-card)] border border-green-300 bg-green-50 p-5 text-sm">
-        <p className="font-semibold text-green-800">✅ Reporte enviado. ¡Gracias!</p>
+        <p className="font-semibold text-green-800">
+          ✅ {tipo === "sugerencia" ? "Sugerencia enviada" : "Reporte enviado"}. ¡Gracias!
+        </p>
         <p className="mt-1 text-[var(--color-texto-muted)]">
-          Tu reporte de {nombreProducto} se ha registrado correctamente y se ha avisado al equipo.
-          Le echarán un vistazo lo antes posible.
+          {tipo === "sugerencia" ? "Sobre" : "Tu reporte de"} {nombreProducto}: {copy.ok}
         </p>
         <button
           onClick={() => {
@@ -155,7 +188,7 @@ export default function FormularioReporte({
           }}
           className="mt-3 rounded-[var(--radius-pill)] border border-[var(--color-borde)] px-4 py-1.5 text-xs font-medium text-[var(--color-texto-muted)] transition-colors hover:border-[var(--color-action)] hover:text-[var(--color-navy)]"
         >
-          Reportar otro
+          Enviar otra
         </button>
       </div>
     );
@@ -172,18 +205,18 @@ export default function FormularioReporte({
         <input
           value={titulo}
           onChange={(e) => setTitulo(e.target.value)}
-          placeholder="Resumen corto del bug"
+          placeholder={copy.tituloPh}
           className={inputBase}
         />
       </div>
 
       <div>
-        <label className="mb-1 block text-sm font-semibold text-[var(--color-navy)]">Descripción</label>
+        <label className="mb-1 block text-sm font-semibold text-[var(--color-navy)]">{copy.descLabel}</label>
         <textarea
           value={descripcion}
           onChange={(e) => setDescripcion(e.target.value)}
           rows={6}
-          placeholder="Qué pasa, qué esperabas, pasos para reproducirlo..."
+          placeholder={copy.descPh}
           className={inputBase}
         />
       </div>
@@ -233,8 +266,8 @@ export default function FormularioReporte({
         {estado === "subiendo"
           ? "Subiendo adjuntos..."
           : estado === "enviando"
-            ? "Creando issue..."
-            : "Reportar"}
+            ? "Enviando..."
+            : copy.boton}
       </button>
     </form>
   );

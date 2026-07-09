@@ -29,6 +29,15 @@ const DEVS_POR_REPO: Record<string, Dev[]> = {
 
 const DEVS_POR_DEFECTO: Dev[] = [ANTONIO, ANGEL];
 
+// Equipo completo (para resolver quién pulsa el botón de Slack "Me la quedo").
+const EQUIPO: Dev[] = [ANTONIO, ANGEL];
+
+// A partir del ID de Slack de quien pulsa, devuelve su usuario de GitHub (o null si no
+// está en el equipo). Así solo Antonio y Ángel pueden autoasignarse una sugerencia.
+export function githubDeSlack(slackId: string): string | null {
+  return EQUIPO.find((d) => d.slack === slackId)?.github ?? null;
+}
+
 // Deriva un alias legible a partir del nombre del repo si no hay override.
 // Ej: "edibs-crm-onboarding" -> "Edibs Crm Onboarding".
 export function aliasDeRepo(repo: string): string {

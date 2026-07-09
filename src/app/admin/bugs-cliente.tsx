@@ -8,11 +8,13 @@ type Adjunto = { nombre: string; url: string; tipo: "imagen" | "video" };
 export type BugPanel = {
   repo: string;
   issue_number: number;
+  tipo?: string;
   titulo: string;
   estado: string;
   reporter_email: string;
   reporter_nombre: string | null;
   reporter_slack_id: string | null;
+  asignado_github: string | null;
   issue_url: string;
   descripcion: string | null;
   adjuntos: Adjunto[];
@@ -85,13 +87,22 @@ function fechaHora(iso: string): string {
   }
 }
 
-export default function BugsCliente({ bugs, iaOn }: { bugs: BugPanel[]; iaOn: boolean }) {
+export default function BugsCliente({
+  bugs,
+  iaOn,
+  modo = "bug",
+}: {
+  bugs: BugPanel[];
+  iaOn: boolean;
+  modo?: "bug" | "sugerencia";
+}) {
   const [detalle, setDetalle] = useState<BugPanel | null>(null);
+  const esSug = modo === "sugerencia";
 
   if (bugs.length === 0) {
     return (
       <div className={`${TABLA_WRAP} p-10 text-center text-sm text-[var(--color-texto-muted)]`}>
-        Aún no hay bugs reportados.
+        {esSug ? "Aún no hay sugerencias." : "Aún no hay bugs reportados."}
       </div>
     );
   }
@@ -104,10 +115,10 @@ export default function BugsCliente({ bugs, iaOn }: { bugs: BugPanel[]; iaOn: bo
             <th className={TH}>Estado</th>
             <th className={TH}>Producto</th>
             <th className={TH}>Título</th>
-            <th className={TH}>Reporta</th>
+            <th className={TH}>{esSug ? "Sugiere" : "Reporta"}</th>
             <th className={TH}>Fecha</th>
             <th className={TH}>Slack</th>
-            <th className={TH}>Análisis IA</th>
+            <th className={TH}>{esSug ? "Asignada a" : "Análisis IA"}</th>
             <th className={TH}>Issue</th>
             <th className={TH}></th>
           </tr>
@@ -138,10 +149,25 @@ export default function BugsCliente({ bugs, iaOn }: { bugs: BugPanel[]; iaOn: bo
                 )}
               </td>
               <td className={TD}>
-                <div className="flex flex-wrap gap-1">
-                  <ChipIA label="Triaje" done={b.ia_triaje} url={b.ia_triaje_url} iaOn={iaOn} />
-                  <ChipIA label="Investigación" done={b.ia_investigacion} url={b.ia_investigacion_url} iaOn={iaOn} />
-                </div>
+                {esSug ? (
+                  b.asignado_github ? (
+                    <a
+                      href={`https://github.com/${b.asignado_github}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className={`${CHIP} bg-green-100 text-green-700`}
+                    >
+                      {b.asignado_github} ✓
+                    </a>
+                  ) : (
+                    <span className={`${CHIP} bg-amber-100 text-amber-700`}>sin asignar</span>
+                  )
+                ) : (
+                  <div className="flex flex-wrap gap-1">
+                    <ChipIA label="Triaje" done={b.ia_triaje} url={b.ia_triaje_url} iaOn={iaOn} />
+                    <ChipIA label="Investigación" done={b.ia_investigacion} url={b.ia_investigacion_url} iaOn={iaOn} />
+                  </div>
+                )}
               </td>
               <td className={`${TD} whitespace-nowrap`}>
                 <a
