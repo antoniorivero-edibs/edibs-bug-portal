@@ -116,9 +116,10 @@ export async function POST(request: NextRequest) {
   }
 
   // 8. Guardar el mapeo en la tabla reportes (con service role).
+  // insert() no lanza: devuelve { error }. Hay que comprobarlo explícitamente.
   try {
     const admin = crearClienteAdmin();
-    await admin.from("reportes").insert({
+    const { error } = await admin.from("reportes").insert({
       repo,
       issue_number: issue.numero,
       issue_url: issue.url,
@@ -134,6 +135,7 @@ export async function POST(request: NextRequest) {
       slack_ts: slack?.ts ?? null,
       slack_permalink: slack?.permalink ?? null,
     });
+    if (error) console.error("Error guardando el reporte:", error);
   } catch (err) {
     console.error("Error guardando el reporte:", err);
   }
@@ -145,12 +147,14 @@ export async function POST(request: NextRequest) {
     const numero = issue.numero;
     after(async () => {
       const admin = crearClienteAdmin();
-      const marcar = (campo: "ia_triaje" | "ia_investigacion", url: string) =>
-        admin
+      const marcar = async (campo: "ia_triaje" | "ia_investigacion", url: string) => {
+        const { error } = await admin
           .from("reportes")
           .update({ [campo]: true, [`${campo}_url`]: url })
           .eq("repo", repo)
           .eq("issue_number", numero);
+        if (error) console.error(`Error actualizando ${campo}:`, error);
+      };
 
       try {
         const triaje = await triajeBug(titulo, descripcion, producto.nombre);

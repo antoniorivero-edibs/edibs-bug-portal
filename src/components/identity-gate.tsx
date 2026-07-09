@@ -97,6 +97,7 @@ function FormularioIdentidad({ onListo }: { onListo: (r: Reporter) => void }) {
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             placeholder="Tu correo corporativo"
+            aria-label="Correo corporativo"
             autoFocus
             className={input}
           />
