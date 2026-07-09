@@ -91,6 +91,17 @@ export async function comentarIssue(repo: string, numero: number, cuerpo: string
   return data.html_url;
 }
 
+// Asigna un usuario de GitHub a un issue (usado por el botón "Me la quedo" de Slack).
+export async function asignarIssue(repo: string, numero: number, usuario: string): Promise<void> {
+  const octokit = octokitApp();
+  await octokit.rest.issues.addAssignees({
+    owner: env.githubOrg(),
+    repo,
+    issue_number: numero,
+    assignees: [usuario],
+  });
+}
+
 // Aplica labels a un issue, creando las que no existan en el repo (color neutro).
 export async function aplicarLabels(repo: string, numero: number, labels: string[]): Promise<void> {
   const limpias = [...new Set(labels.map((l) => l.trim()).filter(Boolean))];

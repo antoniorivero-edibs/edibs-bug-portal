@@ -148,6 +148,103 @@ export async function avisarNuevoBug(aviso: AvisoSlack): Promise<MensajeSlack> {
   return { channel: res.channel, ts: res.ts, permalink };
 }
 
+export type AvisoSugerencia = Omit<AvisoSlack, "devsSlack"> & {
+  repo: string;
+  issueNumber: number;
+};
+
+// Postea el aviso de una nueva sugerencia: sin mención, con botón "Me la quedo".
+// El value del botón lleva repo+issue para que el endpoint de interacciones sepa qué asignar.
+export async function avisarNuevaSugerencia(aviso: AvisoSugerencia): Promise<MensajeSlack> {
+  const client = slack();
+  const canal = env.slackBugChannel();
+  const quienReporta = aviso.reporterSlackId ? `<@${aviso.reporterSlackId}>` : `*${aviso.reporter}*`;
+  const desc = aviso.descripcion.trim();
+  const descCorta = desc.length > 2500 ? `${desc.slice(0, 2500)}…` : desc;
+  const imagenes = aviso.adjuntos.filter((a) => a.tipo === "imagen");
+
+  const blocks: unknown[] = [
+    { type: "section", text: { type: "mrkdwn", text: `:bulb: *Nueva sugerencia en ${aviso.producto}*` } },
+    { type: "section", text: { type: "mrkdwn", text: `*${aviso.tituloIssue}*\n${descCorta || "_(sin descripción)_"}` } },
+  ];
+  for (const img of imagenes.slice(0, 5)) {
+    blocks.push({ type: "image", image_url: img.url, alt_text: img.nombre });
+  }
+  blocks.push(
+    {
+      type: "context",
+      elements: [{ type: "mrkdwn", text: `:bust_in_silhouette: Sugerida por ${quienReporta} (${aviso.reporterEmail})` }],
+    },
+    {
+      type: "actions",
+      elements: [
+        {
+          type: "button",
+          text: { type: "plain_text", text: "🙋 Me la quedo", emoji: true },
+          style: "primary",
+          action_id: "asignar_sugerencia",
+          value: `${aviso.repo}#${aviso.issueNumber}`,
+        },
+        {
+          type: "button",
+          text: { type: "plain_text", text: "Ver issue", emoji: true },
+          url: aviso.urlIssue,
+        },
+      ],
+    }
+  );
+
+  const res = await client.chat.postMessage({
+    channel: canal,
+    text: `Nueva sugerencia en ${aviso.producto}: ${aviso.tituloIssue}`,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    blocks: blocks as any,
+  });
+  if (!res.ok || !res.ts || !res.channel) {
+    throw new Error(`Slack no devolvió ts al postear la sugerencia: ${res.error ?? "desconocido"}`);
+  }
+
+  let permalink: string | null = null;
+  try {
+    const p = await client.chat.getPermalink({ channel: res.channel, message_ts: res.ts });
+    permalink = p.ok ? p.permalink ?? null : null;
+  } catch {
+    permalink = null;
+  }
+
+  await responderEnHilo(
+    res.channel,
+    res.ts,
+    ":thread: *Seguimiento* — pulsad *Me la quedo* para asignárosla. Aquí van las actualizaciones."
+  );
+
+  return { channel: res.channel, ts: res.ts, permalink };
+}
+
+// Edita el aviso de una sugerencia tras asignarla: quita el botón y muestra quién se la quedó.
+export async function marcarSugerenciaAsignada(
+  channel: string,
+  ts: string,
+  datos: { producto: string; tituloIssue: string; urlIssue: string; reporter: string; reporterEmail: string; asignadoSlackId: string }
+): Promise<void> {
+  const client = slack();
+  await client.chat.update({
+    channel,
+    ts,
+    text: `Sugerencia en ${datos.producto} asignada`,
+    blocks: [
+      { type: "section", text: { type: "mrkdwn", text: `:bulb: *Sugerencia en ${datos.producto}*` } },
+      { type: "section", text: { type: "mrkdwn", text: `<${datos.urlIssue}|${datos.tituloIssue}>` } },
+      {
+        type: "context",
+        elements: [
+          { type: "mrkdwn", text: `:raising_hand: Asignada a <@${datos.asignadoSlackId}>  ·  sugerida por *${datos.reporter}* (${datos.reporterEmail})` },
+        ],
+      },
+    ],
+  });
+}
+
 // Marca el aviso como resuelto (o lo revierte) actualizando el mensaje existente.
 export async function actualizarEstadoBug(
   channel: string,

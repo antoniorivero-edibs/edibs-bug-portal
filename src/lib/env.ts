@@ -31,6 +31,8 @@ export const env = {
 
   slackBotToken: () => requerida("SLACK_BOT_TOKEN"),
   slackBugChannel: () => opcional("SLACK_BUG_CHANNEL", "#bug"),
+  // Secreto de firma de la Slack app (para verificar los clics de botones interactivos).
+  slackSigningSecret: () => requerida("SLACK_SIGNING_SECRET"),
 
   // Panel de administración: login con GitHub (OAuth de la propia GitHub App) + sesión firmada.
   githubClientId: () => requerida("GITHUB_APP_CLIENT_ID"),

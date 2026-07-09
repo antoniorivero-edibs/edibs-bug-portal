@@ -76,15 +76,17 @@ export default async function PanelPage({
   });
 
   const admin = crearClienteAdmin();
-  const { data: bugsData, error: errorBugs } = await admin
+  const { data: reportesData, error: errorBugs } = await admin
     .from("reportes")
     .select(
-      "repo, issue_number, titulo, estado, reporter_email, reporter_nombre, reporter_slack_id, issue_url, descripcion, adjuntos, navegador, url_origen, slack_permalink, ia_triaje, ia_investigacion, ia_triaje_url, ia_investigacion_url, creado_en"
+      "repo, issue_number, tipo, titulo, estado, reporter_email, reporter_nombre, reporter_slack_id, asignado_github, issue_url, descripcion, adjuntos, navegador, url_origen, slack_permalink, ia_triaje, ia_investigacion, ia_triaje_url, ia_investigacion_url, creado_en"
     )
     .order("creado_en", { ascending: false })
-    .limit(200);
-  if (errorBugs) console.error("Error cargando bugs en el panel:", errorBugs);
-  const bugs = (bugsData ?? []) as unknown as BugPanel[];
+    .limit(300);
+  if (errorBugs) console.error("Error cargando reportes en el panel:", errorBugs);
+  const todos = (reportesData ?? []) as unknown as BugPanel[];
+  const bugs = todos.filter((r) => (r.tipo ?? "bug") !== "sugerencia");
+  const sugerencias = todos.filter((r) => r.tipo === "sugerencia");
   const iaOn = iaConfigurada();
 
   return (
@@ -110,10 +112,11 @@ export default async function PanelPage({
       )}
 
       <Tabs
-        etiquetas={["Productos", `Bugs (${bugs.length})`]}
+        etiquetas={["Productos", `Bugs (${bugs.length})`, `Sugerencias (${sugerencias.length})`]}
         paneles={[
           <ProductosCliente key="p" inicial={inicial} />,
           <BugsCliente key="b" bugs={bugs} iaOn={iaOn} />,
+          <BugsCliente key="s" bugs={sugerencias} iaOn={iaOn} modo="sugerencia" />,
         ]}
       />
       </div>

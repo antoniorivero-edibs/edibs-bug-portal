@@ -3,12 +3,13 @@ import { crearClienteAdmin } from "@/lib/supabase/admin";
 import { emailPermitido } from "@/lib/domains";
 import { crearIssue, comentarIssue, aplicarLabels } from "@/lib/github";
 import { esProductoValido } from "@/lib/productos-db";
-import { avisarNuevoBug, buscarSlackPorEmail, responderEnHilo, mdASlack } from "@/lib/slack";
+import { avisarNuevoBug, avisarNuevaSugerencia, buscarSlackPorEmail, responderEnHilo, mdASlack } from "@/lib/slack";
 import { triajeBug, investigarRepo, iaConfigurada } from "@/lib/ai";
 import { LABEL_PORTAL } from "@/lib/products";
 import {
   construirCuerpoIssue,
   tipoPorNombre,
+  esTipoReporte,
   MAX_ADJUNTOS,
   MAX_BYTES_ADJUNTO,
   type Adjunto,
@@ -21,6 +22,7 @@ export async function POST(request: NextRequest) {
   // 1. Cuerpo de la petición.
   let body: {
     repo?: string;
+    tipo?: string;
     titulo?: string;
     descripcion?: string;
     adjuntos?: Adjunto[];
@@ -32,6 +34,10 @@ export async function POST(request: NextRequest) {
   } catch {
     return NextResponse.json({ error: "Cuerpo inválido." }, { status: 400 });
   }
+
+  // Tipo de reporte: bug (por defecto) o sugerencia.
+  const tipo = esTipoReporte(body.tipo) ? body.tipo : "bug";
+  const esSugerencia = tipo === "sugerencia";
 
   // 2. Identidad: gate por dominio (no hay sesión).
   const nombreReporter = (body.reporter?.nombre ?? "").trim();
@@ -70,37 +76,45 @@ export async function POST(request: NextRequest) {
   }
 
   // 5. Crear el issue en GitHub.
+  //    Bug: asignado a los devs. Sugerencia: sin asignar (se autoasigna con el botón de Slack).
   const navegador = request.headers.get("user-agent") ?? "desconocido";
   const urlOrigen = body.urlOrigen ?? "-";
-  const cuerpo = construirCuerpoIssue(descripcion, adjuntos, reporter, {
-    fecha: new Date().toISOString(),
-    navegador,
-    urlOrigen,
-  });
+  const cuerpo = construirCuerpoIssue(
+    descripcion,
+    adjuntos,
+    reporter,
+    { fecha: new Date().toISOString(), navegador, urlOrigen },
+    tipo
+  );
 
   let issue;
   try {
-    issue = await crearIssue({ repo, titulo, cuerpo, asignados: producto.asignados });
+    issue = await crearIssue({
+      repo,
+      titulo,
+      cuerpo,
+      asignados: esSugerencia ? [] : producto.asignados,
+    });
   } catch (err) {
     console.error("Error creando issue:", err);
     return NextResponse.json({ error: "No se pudo crear el issue en GitHub." }, { status: 502 });
   }
 
-  // 6. Label base del portal (las de categoría las añade Claude en segundo plano).
+  // 6. Labels base. Bug: portal (+ las de Claude luego). Sugerencia: portal + enhancement.
   try {
-    await aplicarLabels(repo, issue.numero, [LABEL_PORTAL]);
+    await aplicarLabels(repo, issue.numero, esSugerencia ? [LABEL_PORTAL, "enhancement"] : [LABEL_PORTAL]);
   } catch (err) {
-    console.error("Error aplicando la label portal:", err);
+    console.error("Error aplicando las labels:", err);
   }
 
   // Resolver el usuario de Slack del reporter (si Slack está configurado) para mencionarlo
   // y guardar su ID (enlace a DM en el panel).
   const reporterSlack = await buscarSlackPorEmail(reporter.email);
 
-  // 7. Avisar en Slack. Si Slack falla no tiramos todo el reporte: el issue ya existe.
+  // 7. Avisar en Slack. Bug: aviso con menciones. Sugerencia: aviso sin mención, con botón "Me la quedo".
   let slack: { channel: string; ts: string; permalink: string | null } | null = null;
   try {
-    slack = await avisarNuevoBug({
+    const comun = {
       producto: producto.nombre,
       tituloIssue: titulo,
       urlIssue: issue.url,
@@ -109,8 +123,10 @@ export async function POST(request: NextRequest) {
       reporter: reporter.nombre,
       reporterEmail: reporter.email,
       reporterSlackId: reporterSlack?.id ?? null,
-      devsSlack: producto.devsSlack,
-    });
+    };
+    slack = esSugerencia
+      ? await avisarNuevaSugerencia({ ...comun, repo, issueNumber: issue.numero })
+      : await avisarNuevoBug({ ...comun, devsSlack: producto.devsSlack });
   } catch (err) {
     console.error("Error avisando en Slack:", err);
   }
@@ -123,6 +139,7 @@ export async function POST(request: NextRequest) {
       repo,
       issue_number: issue.numero,
       issue_url: issue.url,
+      tipo,
       titulo,
       reporter_email: reporter.email,
       reporter_nombre: reporter.nombre,
@@ -140,10 +157,10 @@ export async function POST(request: NextRequest) {
     console.error("Error guardando el reporte:", err);
   }
 
-  // 9. Análisis con IA en segundo plano: no bloquea la respuesta al usuario.
+  // 9. Análisis con IA en segundo plano (solo bugs; una sugerencia no se investiga).
   //    Se publican DOS comentarios por orden de importancia, según van terminando:
   //    (1) triaje (resumen + severidad + categoría, aplica labels), (2) investigación del repo.
-  if (iaConfigurada()) {
+  if (!esSugerencia && iaConfigurada()) {
     const numero = issue.numero;
     after(async () => {
       const admin = crearClienteAdmin();
