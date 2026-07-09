@@ -187,7 +187,7 @@ export async function avisarNuevaSugerencia(aviso: AvisoSugerencia): Promise<Men
         },
         {
           type: "button",
-          text: { type: "plain_text", text: "Ver issue", emoji: true },
+          text: { type: "plain_text", text: "Ver issue en GitHub", emoji: true },
           url: aviso.urlIssue,
         },
       ],
@@ -245,7 +245,7 @@ export async function marcarSugerenciaAsignada(
       {
         type: "actions",
         elements: [
-          { type: "button", text: { type: "plain_text", text: "Ver issue", emoji: true }, url: datos.urlIssue },
+          { type: "button", text: { type: "plain_text", text: "Ver issue en GitHub", emoji: true }, url: datos.urlIssue },
         ],
       },
     ],
@@ -253,28 +253,32 @@ export async function marcarSugerenciaAsignada(
 }
 
 // Marca el aviso como resuelto (o lo revierte) actualizando el mensaje existente.
+// Respeta el tipo (bug/sugerencia) para el wording y conserva el botón "Ver issue en GitHub".
 export async function actualizarEstadoBug(
   channel: string,
   ts: string,
   resuelto: boolean,
-  datos: { producto: string; tituloIssue: string; urlIssue: string }
+  datos: { producto: string; tituloIssue: string; urlIssue: string; tipo?: "bug" | "sugerencia" }
 ): Promise<void> {
   const client = slack();
+  const esSug = datos.tipo === "sugerencia";
   const cabecera = resuelto
-    ? `:white_check_mark: *Resuelto - ${datos.producto}*`
-    : `:beetle: *Nuevo bug en ${datos.producto}*`;
+    ? `:white_check_mark: *${esSug ? "Sugerencia resuelta" : "Resuelto"} - ${datos.producto}*`
+    : esSug
+      ? `:bulb: *Sugerencia en ${datos.producto}*`
+      : `:beetle: *Nuevo bug en ${datos.producto}*`;
 
   await client.chat.update({
     channel,
     ts,
-    text: `${resuelto ? "Resuelto" : "Bug"} en ${datos.producto}: ${datos.tituloIssue}`,
+    text: `${resuelto ? "Resuelto" : esSug ? "Sugerencia" : "Bug"} en ${datos.producto}: ${datos.tituloIssue}`,
     blocks: [
+      { type: "section", text: { type: "mrkdwn", text: `${cabecera}\n*${datos.tituloIssue}*` } },
       {
-        type: "section",
-        text: {
-          type: "mrkdwn",
-          text: `${cabecera}\n<${datos.urlIssue}|${datos.tituloIssue}>`,
-        },
+        type: "actions",
+        elements: [
+          { type: "button", text: { type: "plain_text", text: "Ver issue en GitHub", emoji: true }, url: datos.urlIssue },
+        ],
       },
     ],
   });
