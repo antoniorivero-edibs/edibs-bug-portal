@@ -90,18 +90,23 @@ export async function triajeBug(
 
     const labels = [...new Set((datos.labels || []).map((l) => l.trim().toLowerCase()).filter(Boolean))];
 
-    const comentario = [
+    // Emoji de color según la severidad.
+    const emojiSev: Record<string, string> = { baja: "🟢", media: "🟡", alta: "🟠", critica: "🔴" };
+    const sev = `${emojiSev[datos.severidad] ?? "⚪"} ${datos.severidad}`;
+
+    // Cada sección en su propio párrafo (línea en blanco entre partes) para que se lea bien.
+    const partes = [
       "## 🔎 Triaje automático",
-      "",
-      `**Resumen:** ${datos.resumen}`,
-      `**Qué ocurre:** ${datos.que_ocurre}`,
-      `**Severidad sugerida:** ${datos.severidad} — ${datos.justificacion_severidad}`,
-      labels.length ? `**Categoría / etiquetas:** ${labels.join(", ")}` : "",
-      "",
-      "_Análisis automático (IA). La severidad es una sugerencia; el equipo decide al triar._",
-    ]
-      .filter(Boolean)
-      .join("\n");
+      `### 📝 Resumen\n${datos.resumen}`,
+      `### 🐞 Qué ocurre\n${datos.que_ocurre}`,
+      `### 🚦 Severidad sugerida\n${sev} — ${datos.justificacion_severidad}`,
+    ];
+    if (labels.length) partes.push(`### 🏷️ Categoría / etiquetas\n${labels.join(", ")}`);
+    partes.push(
+      "---",
+      "_Análisis automático (IA). La severidad es una sugerencia; el equipo decide al triar._"
+    );
+    const comentario = partes.join("\n\n");
 
     return { comentario, labels };
   } catch (err) {
@@ -186,17 +191,19 @@ export async function investigarRepo(
         "Eres un ingeniero senior. A partir de un reporte de bug y el contenido de unos ficheros del repo, " +
         "acotas la causa probable y señalas las zonas concretas (fichero, función o líneas) donde mirar. " +
         "Objetivo: que otro dev con Claude Code retome el issue con la mayor parte del camino hecho. " +
-        "Sé concreto y honesto: si no estás seguro, dilo. Responde en español y en Markdown, sin preámbulos. " +
+        "Sé concreto y honesto: si no estás seguro, dilo. " +
+        "Responde en español y en Markdown BIEN ESPACIADO: una línea en blanco entre secciones y entre viñetas. " +
+        "Sin preámbulos. " +
         `Enlaza cada fichero como [ruta](${base}ruta).`,
       messages: [
         {
           role: "user",
           content:
             `${contextoBug}\n\nContenido de los ficheros candidatos:\n\n${contenidos.join("\n\n")}\n\n` +
-            "Devuelve el análisis con estas secciones:\n" +
-            "**Causa probable:** ...\n" +
-            "**Ficheros / áreas candidatas:** lista con enlace y qué revisar en cada uno (función/línea si puedes).\n" +
-            "**Para el dev:** pistas para continuar y qué verificar.",
+            "Devuelve el análisis con estas tres secciones, cada una con su encabezado `###` y una línea en blanco entre secciones:\n\n" +
+            "### 🎯 Causa probable\n(explicación concreta)\n\n" +
+            "### 📂 Ficheros / áreas candidatas\n(una viñeta por fichero, con enlace y qué revisar; línea en blanco entre viñetas)\n\n" +
+            "### 🛠️ Para el dev\n(pistas para continuar y qué verificar)",
         },
       ],
     });
@@ -205,11 +212,10 @@ export async function investigarRepo(
     if (!analisis) return null;
     return [
       "## 🧭 Investigación del código",
-      "",
       analisis,
-      "",
+      "---",
       "_Análisis automático (IA) leyendo el repositorio. Puede contener errores; verifícalo antes de asumirlo._",
-    ].join("\n");
+    ].join("\n\n");
   } catch (err) {
     console.error("Error analizando el código:", err);
     return null;
