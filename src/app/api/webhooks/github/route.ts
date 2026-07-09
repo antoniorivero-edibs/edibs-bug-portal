@@ -39,7 +39,7 @@ export async function POST(request: NextRequest) {
   const admin = crearClienteAdmin();
   const { data: reporte } = await admin
     .from("reportes")
-    .select("slack_channel, slack_ts")
+    .select("slack_channel, slack_ts, tipo")
     .eq("repo", repo)
     .eq("issue_number", issueNumber)
     .maybeSingle();
@@ -65,6 +65,7 @@ export async function POST(request: NextRequest) {
         producto: aliasDeRepo(repo),
         tituloIssue: titulo,
         urlIssue: issueUrl,
+        tipo: reporte.tipo === "sugerencia" ? "sugerencia" : "bug",
       });
       // Aviso en el hilo de seguimiento.
       await responderEnHilo(
