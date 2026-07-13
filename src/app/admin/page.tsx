@@ -79,7 +79,7 @@ export default async function PanelPage({
   const { data: reportesData, error: errorBugs } = await admin
     .from("reportes")
     .select(
-      "repo, issue_number, tipo, titulo, estado, reporter_email, reporter_nombre, reporter_slack_id, asignado_github, issue_url, descripcion, adjuntos, navegador, url_origen, slack_permalink, ia_triaje, ia_investigacion, ia_triaje_url, ia_investigacion_url, creado_en"
+      "repo, issue_number, tipo, titulo, estado, reporter_email, reporter_nombre, reporter_slack_id, asignado_github, asignado_slack, asignado_slack_avatar, issue_url, descripcion, adjuntos, navegador, url_origen, slack_permalink, ia_triaje, ia_investigacion, ia_triaje_url, ia_investigacion_url, creado_en"
     )
     .order("creado_en", { ascending: false })
     .limit(300);

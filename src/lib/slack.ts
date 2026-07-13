@@ -49,7 +49,11 @@ export async function buscarSlackPorEmail(
   }
 }
 
-export type AvisoSlack = {
+// Datos completos de un reporte, suficientes para reconstruir su aviso en cualquier estado.
+// Al guardarlos en `reportes`, el webhook y el endpoint de interacciones pueden re-generar
+// el mensaje idéntico (esto es lo que resuelve el issue de "reconstruir el post completo").
+export type DatosAviso = {
+  tipo: "bug" | "sugerencia";
   producto: string;
   tituloIssue: string;
   urlIssue: string;
@@ -58,7 +62,10 @@ export type AvisoSlack = {
   reporter: string;
   reporterEmail: string;
   reporterSlackId?: string | null; // si se resuelve por email, se menciona al reporter
-  devsSlack: string[];
+  repo: string;
+  issueNumber: number;
+  devsSlack?: string[]; // menciones (solo bug, estado abierto)
+  asignadoSlackId?: string | null; // quién se encarga, si ya está asignado
 };
 
 export type MensajeSlack = {
@@ -67,143 +74,87 @@ export type MensajeSlack = {
   permalink: string | null;
 };
 
-// Postea el aviso del nuevo bug en #bug y devuelve el ts para poder actualizarlo luego.
-export async function avisarNuevoBug(aviso: AvisoSlack): Promise<MensajeSlack> {
-  const client = slack();
-  const canal = env.slackBugChannel();
-  const menciones = aviso.devsSlack.map((id) => `<@${id}>`).join(" ");
-  const quienReporta = aviso.reporterSlackId ? `<@${aviso.reporterSlackId}>` : `*${aviso.reporter}*`;
-  const desc = aviso.descripcion.trim();
-  const descCorta = desc.length > 2500 ? `${desc.slice(0, 2500)}…` : desc;
+type EstadoAviso = "abierto" | "asignado" | "cerrado";
 
-  const imagenes = aviso.adjuntos.filter((a) => a.tipo === "imagen");
-  const videos = aviso.adjuntos.filter((a) => a.tipo === "video");
+// Fuente única de verdad del aviso: genera los bloques según tipo y estado.
+// - abierto: aviso completo + botón "Me encargo" (bug: menciona a los devs).
+// - asignado: idéntico, pero sin botón "Me encargo" y con "Se encarga @X".
+// - cerrado: versión mínima (cabecera + enlace), sin botón, para distinguirlo del abierto.
+function construirBloques(d: DatosAviso, estado: EstadoAviso): { blocks: unknown[]; text: string } {
+  const esSug = d.tipo === "sugerencia";
+  const quienReporta = d.reporterSlackId ? `<@${d.reporterSlackId}>` : `*${d.reporter}*`;
+  const etiquetaReporta = esSug ? "Sugerida por" : "Reporta";
+
+  if (estado === "cerrado") {
+    const cab = `:white_check_mark: *${esSug ? "Sugerencia resuelta" : "Resuelto"} - ${d.producto}*`;
+    return {
+      blocks: [{ type: "section", text: { type: "mrkdwn", text: `${cab}\n<${d.urlIssue}|${d.tituloIssue}>` } }],
+      text: `${esSug ? "Sugerencia resuelta" : "Resuelto"} en ${d.producto}: ${d.tituloIssue}`,
+    };
+  }
+
+  const cab = esSug ? `:bulb: *Nueva sugerencia en ${d.producto}*` : `:beetle: *Nuevo bug en ${d.producto}*`;
+  const desc = d.descripcion.trim();
+  const descCorta = desc.length > 2500 ? `${desc.slice(0, 2500)}…` : desc;
+  const imagenes = d.adjuntos.filter((a) => a.tipo === "imagen");
+  const videos = d.adjuntos.filter((a) => a.tipo === "video");
 
   const blocks: unknown[] = [
-    { type: "section", text: { type: "mrkdwn", text: `:beetle: *Nuevo bug en ${aviso.producto}*` } },
-    { type: "section", text: { type: "mrkdwn", text: `*${aviso.tituloIssue}*\n${descCorta || "_(sin descripción)_"}` } },
+    { type: "section", text: { type: "mrkdwn", text: cab } },
+    { type: "section", text: { type: "mrkdwn", text: `*${d.tituloIssue}*\n${descCorta || "_(sin descripción)_"}` } },
   ];
-
-  // Imágenes incrustadas directamente en el mensaje.
   for (const img of imagenes.slice(0, 5)) {
     blocks.push({ type: "image", image_url: img.url, alt_text: img.nombre });
   }
-  // Vídeos como enlace.
   if (videos.length > 0) {
     blocks.push({
       type: "context",
-      elements: [
-        { type: "mrkdwn", text: `:movie_camera: ${videos.map((v) => `<${v.url}|${v.nombre}>`).join("  ·  ")}` },
-      ],
+      elements: [{ type: "mrkdwn", text: `:movie_camera: ${videos.map((v) => `<${v.url}|${v.nombre}>`).join("  ·  ")}` }],
     });
   }
-
-  blocks.push(
-    // Quién reporta (mencionado para poder escribirle por DM) en su propia línea.
-    {
-      type: "context",
-      elements: [
-        { type: "mrkdwn", text: `:bust_in_silhouette: Reporta ${quienReporta} (${aviso.reporterEmail})` },
-      ],
-    }
-  );
-  // Menciones a los devs en línea aparte (sin "cc").
-  if (menciones) {
-    blocks.push({ type: "section", text: { type: "mrkdwn", text: menciones } });
-  }
   blocks.push({
-    type: "actions",
-    elements: [
-      { type: "button", text: { type: "plain_text", text: "Ver issue en GitHub", emoji: true }, url: aviso.urlIssue },
-    ],
+    type: "context",
+    elements: [{ type: "mrkdwn", text: `:bust_in_silhouette: ${etiquetaReporta} ${quienReporta} (${d.reporterEmail})` }],
   });
 
+  // Línea de "quién se encarga" (asignado) o menciones a los devs (bug recién abierto).
+  if (estado === "asignado" && d.asignadoSlackId) {
+    blocks.push({ type: "section", text: { type: "mrkdwn", text: `:raising_hand: Se encarga <@${d.asignadoSlackId}>` } });
+  } else if (estado === "abierto" && !esSug && d.devsSlack && d.devsSlack.length) {
+    blocks.push({ type: "section", text: { type: "mrkdwn", text: d.devsSlack.map((id) => `<@${id}>`).join(" ") } });
+  }
+
+  // Botones: en abierto, "Me encargo" + "Ver issue"; en asignado, solo "Ver issue".
+  const elements: unknown[] = [];
+  if (estado === "abierto") {
+    elements.push({
+      type: "button",
+      text: { type: "plain_text", text: "🙋 Me encargo", emoji: true },
+      style: "primary",
+      action_id: esSug ? "asignar_sugerencia" : "asignar_bug",
+      value: `${d.repo}#${d.issueNumber}`,
+    });
+  }
+  elements.push({ type: "button", text: { type: "plain_text", text: "Ver issue en GitHub", emoji: true }, url: d.urlIssue });
+  blocks.push({ type: "actions", elements });
+
+  return { blocks, text: `${esSug ? "Sugerencia" : "Bug"} en ${d.producto}: ${d.tituloIssue}` };
+}
+
+// Postea el aviso de un nuevo reporte (bug o sugerencia) y abre su hilo de seguimiento.
+export async function avisarNuevoReporte(d: DatosAviso): Promise<MensajeSlack> {
+  const client = slack();
+  const { blocks, text } = construirBloques(d, "abierto");
   const res = await client.chat.postMessage({
-    channel: canal,
-    text: `Nuevo bug en ${aviso.producto}: ${aviso.tituloIssue} ${menciones}`,
+    channel: env.slackBugChannel(),
+    text,
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     blocks: blocks as any,
   });
-
   if (!res.ok || !res.ts || !res.channel) {
     throw new Error(`Slack no devolvió ts al postear: ${res.error ?? "desconocido"}`);
   }
 
-  // Permalink del mensaje (para enlazarlo desde el panel). Best-effort.
-  let permalink: string | null = null;
-  try {
-    const p = await client.chat.getPermalink({ channel: res.channel, message_ts: res.ts });
-    permalink = p.ok ? p.permalink ?? null : null;
-  } catch {
-    permalink = null;
-  }
-
-  // Abre el hilo de seguimiento: aquí caerán el estado, el análisis de la IA y los comentarios.
-  await responderEnHilo(
-    res.channel,
-    res.ts,
-    ":thread: *Seguimiento y actualizaciones* — aquí se registran el estado y el análisis de la IA. Comentad lo que haga falta."
-  );
-
-  return { channel: res.channel, ts: res.ts, permalink };
-}
-
-export type AvisoSugerencia = Omit<AvisoSlack, "devsSlack"> & {
-  repo: string;
-  issueNumber: number;
-};
-
-// Postea el aviso de una nueva sugerencia: sin mención, con botón "Me la quedo".
-// El value del botón lleva repo+issue para que el endpoint de interacciones sepa qué asignar.
-export async function avisarNuevaSugerencia(aviso: AvisoSugerencia): Promise<MensajeSlack> {
-  const client = slack();
-  const canal = env.slackBugChannel();
-  const quienReporta = aviso.reporterSlackId ? `<@${aviso.reporterSlackId}>` : `*${aviso.reporter}*`;
-  const desc = aviso.descripcion.trim();
-  const descCorta = desc.length > 2500 ? `${desc.slice(0, 2500)}…` : desc;
-  const imagenes = aviso.adjuntos.filter((a) => a.tipo === "imagen");
-
-  const blocks: unknown[] = [
-    { type: "section", text: { type: "mrkdwn", text: `:bulb: *Nueva sugerencia en ${aviso.producto}*` } },
-    { type: "section", text: { type: "mrkdwn", text: `*${aviso.tituloIssue}*\n${descCorta || "_(sin descripción)_"}` } },
-  ];
-  for (const img of imagenes.slice(0, 5)) {
-    blocks.push({ type: "image", image_url: img.url, alt_text: img.nombre });
-  }
-  blocks.push(
-    {
-      type: "context",
-      elements: [{ type: "mrkdwn", text: `:bust_in_silhouette: Sugerida por ${quienReporta} (${aviso.reporterEmail})` }],
-    },
-    {
-      type: "actions",
-      elements: [
-        {
-          type: "button",
-          text: { type: "plain_text", text: "🙋 Me la quedo", emoji: true },
-          style: "primary",
-          action_id: "asignar_sugerencia",
-          value: `${aviso.repo}#${aviso.issueNumber}`,
-        },
-        {
-          type: "button",
-          text: { type: "plain_text", text: "Ver issue en GitHub", emoji: true },
-          url: aviso.urlIssue,
-        },
-      ],
-    }
-  );
-
-  const res = await client.chat.postMessage({
-    channel: canal,
-    text: `Nueva sugerencia en ${aviso.producto}: ${aviso.tituloIssue}`,
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    blocks: blocks as any,
-  });
-  if (!res.ok || !res.ts || !res.channel) {
-    throw new Error(`Slack no devolvió ts al postear la sugerencia: ${res.error ?? "desconocido"}`);
-  }
-
   let permalink: string | null = null;
   try {
     const p = await client.chat.getPermalink({ channel: res.channel, message_ts: res.ts });
@@ -215,86 +166,48 @@ export async function avisarNuevaSugerencia(aviso: AvisoSugerencia): Promise<Men
   await responderEnHilo(
     res.channel,
     res.ts,
-    ":thread: *Seguimiento* — pulsad *Me la quedo* para asignárosla. Aquí van las actualizaciones."
+    ":thread: *Seguimiento y actualizaciones* — aquí se registran el estado y el análisis. Comentad lo que haga falta."
   );
 
   return { channel: res.channel, ts: res.ts, permalink };
 }
 
-// Edita el aviso de una sugerencia tras asignarla: quita el botón y muestra quién se la quedó.
-export async function marcarSugerenciaAsignada(
+// Reescribe el aviso tras asignarlo: idéntico pero sin botón "Me encargo" y con "Se encarga @X".
+export async function marcarAsignado(
   channel: string,
   ts: string,
-  datos: { producto: string; tituloIssue: string; urlIssue: string; reporter: string; reporterEmail: string; reporterSlackId?: string | null; asignadoSlackId: string }
+  d: DatosAviso,
+  asignadoSlackId: string
 ): Promise<void> {
-  const client = slack();
-  // Menciona a quien la sugirió si se conoce su Slack (igual que en el aviso original).
-  const quienSugiere = datos.reporterSlackId ? `<@${datos.reporterSlackId}>` : `*${datos.reporter}*`;
-  await client.chat.update({
-    channel,
-    ts,
-    text: `Sugerencia en ${datos.producto} asignada`,
-    blocks: [
-      { type: "section", text: { type: "mrkdwn", text: `:bulb: *Sugerencia en ${datos.producto}*` } },
-      { type: "section", text: { type: "mrkdwn", text: `*${datos.tituloIssue}*` } },
-      {
-        type: "context",
-        elements: [
-          { type: "mrkdwn", text: `:bust_in_silhouette: Sugerida por ${quienSugiere} (${datos.reporterEmail})` },
-        ],
-      },
-      {
-        type: "context",
-        elements: [
-          { type: "mrkdwn", text: `:raising_hand: Asignada a <@${datos.asignadoSlackId}>` },
-        ],
-      },
-      // Se quita el botón "Me la quedo" pero se conserva el de "Ver issue".
-      {
-        type: "actions",
-        elements: [
-          { type: "button", text: { type: "plain_text", text: "Ver issue en GitHub", emoji: true }, url: datos.urlIssue },
-        ],
-      },
-    ],
-  });
+  const { blocks, text } = construirBloques({ ...d, asignadoSlackId }, "asignado");
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  await slack().chat.update({ channel, ts, text, blocks: blocks as any });
 }
 
-// Marca el aviso como resuelto (o lo revierte) actualizando el mensaje existente.
-// Respeta el tipo (bug/sugerencia) para el wording y conserva el botón "Ver issue en GitHub".
-export async function actualizarEstadoBug(
+// Marca el aviso como resuelto (o lo revierte). Al reabrir reconstruye el aviso COMPLETO
+// (asignado si tenía dueño, o abierto con botón), no una versión pobre.
+export async function actualizarEstado(
   channel: string,
   ts: string,
   resuelto: boolean,
-  datos: { producto: string; tituloIssue: string; urlIssue: string; tipo?: "bug" | "sugerencia" }
+  d: DatosAviso
 ): Promise<void> {
-  const client = slack();
-  const esSug = datos.tipo === "sugerencia";
-  const cabecera = resuelto
-    ? `:white_check_mark: *${esSug ? "Sugerencia resuelta" : "Resuelto"} - ${datos.producto}*`
-    : esSug
-      ? `:bulb: *Sugerencia en ${datos.producto}*`
-      : `:beetle: *Nuevo bug en ${datos.producto}*`;
+  const estado: EstadoAviso = resuelto ? "cerrado" : d.asignadoSlackId ? "asignado" : "abierto";
+  const { blocks, text } = construirBloques(d, estado);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  await slack().chat.update({ channel, ts, text, blocks: blocks as any });
+}
 
-  // Cerrado: limpio, solo cabecera + título como enlace, sin botón (se distingue del abierto).
-  // Reabierto: vuelve el botón "Ver issue en GitHub".
-  const blocks: unknown[] = resuelto
-    ? [{ type: "section", text: { type: "mrkdwn", text: `${cabecera}\n<${datos.urlIssue}|${datos.tituloIssue}>` } }]
-    : [
-        { type: "section", text: { type: "mrkdwn", text: `${cabecera}\n*${datos.tituloIssue}*` } },
-        {
-          type: "actions",
-          elements: [
-            { type: "button", text: { type: "plain_text", text: "Ver issue en GitHub", emoji: true }, url: datos.urlIssue },
-          ],
-        },
-      ];
-
-  await client.chat.update({
-    channel,
-    ts,
-    text: `${resuelto ? "Resuelto" : esSug ? "Sugerencia" : "Bug"} en ${datos.producto}: ${datos.tituloIssue}`,
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    blocks: blocks as any,
-  });
+// Obtiene la URL del avatar de Slack de un usuario (para mostrarlo en el panel).
+// Se cachea en la fila al asignar, para no llamar a users.info en cada carga.
+export async function avatarDeSlack(userId: string): Promise<string | null> {
+  if (!slackConfigurado()) return null;
+  try {
+    const res = await slack().users.info({ user: userId });
+    if (!res.ok || !res.user) return null;
+    const p = res.user.profile;
+    return p?.image_192 || p?.image_72 || p?.image_48 || null;
+  } catch {
+    return null;
+  }
 }
