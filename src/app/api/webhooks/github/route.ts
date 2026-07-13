@@ -1,9 +1,10 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { verify } from "@octokit/webhooks-methods";
 import { crearClienteAdmin } from "@/lib/supabase/admin";
-import { actualizarEstadoBug, responderEnHilo } from "@/lib/slack";
+import { actualizarEstado, responderEnHilo, type DatosAviso } from "@/lib/slack";
 import { aliasDeRepo } from "@/lib/products";
 import { env } from "@/lib/env";
+import type { Adjunto } from "@/lib/report";
 
 // Webhook de la GitHub App. Al cerrar/reabrir un issue actualiza el aviso de Slack.
 export async function POST(request: NextRequest) {
@@ -35,11 +36,13 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ ok: true, ignorado: "sin_repo_o_issue" });
   }
 
-  // Buscar el mensaje de Slack guardado para este issue.
+  // Buscar el mensaje de Slack guardado y los datos para reconstruir el aviso completo.
   const admin = crearClienteAdmin();
   const { data: reporte } = await admin
     .from("reportes")
-    .select("slack_channel, slack_ts, tipo")
+    .select(
+      "slack_channel, slack_ts, tipo, descripcion, adjuntos, reporter_nombre, reporter_email, reporter_slack_id, asignado_slack"
+    )
     .eq("repo", repo)
     .eq("issue_number", issueNumber)
     .maybeSingle();
@@ -61,12 +64,21 @@ export async function POST(request: NextRequest) {
   // Actualizar el mensaje de Slack solo si existe (Slack puede no estar configurado todavía).
   if (reporte.slack_channel && reporte.slack_ts) {
     try {
-      await actualizarEstadoBug(reporte.slack_channel, reporte.slack_ts, resuelto, {
+      const datos: DatosAviso = {
+        tipo: reporte.tipo === "sugerencia" ? "sugerencia" : "bug",
         producto: aliasDeRepo(repo),
         tituloIssue: titulo,
         urlIssue: issueUrl,
-        tipo: reporte.tipo === "sugerencia" ? "sugerencia" : "bug",
-      });
+        descripcion: reporte.descripcion ?? "",
+        adjuntos: (reporte.adjuntos as Adjunto[]) ?? [],
+        reporter: reporte.reporter_nombre ?? reporte.reporter_email,
+        reporterEmail: reporte.reporter_email,
+        reporterSlackId: reporte.reporter_slack_id ?? null,
+        repo,
+        issueNumber,
+        asignadoSlackId: reporte.asignado_slack ?? null,
+      };
+      await actualizarEstado(reporte.slack_channel, reporte.slack_ts, resuelto, datos);
       // Aviso en el hilo de seguimiento.
       await responderEnHilo(
         reporte.slack_channel,

@@ -9,11 +9,11 @@ export type Producto = {
   asignados: string[];
 };
 
-// Un dev del equipo: su ID de Slack (para menciones) y su usuario de GitHub (para asignar).
-type Dev = { slack: string; github: string };
+// Un dev del equipo: su ID de Slack (menciones), su usuario de GitHub (asignar) y su nombre (panel).
+type Dev = { slack: string; github: string; nombre: string };
 
-const ANTONIO: Dev = { slack: process.env.SLACK_DEV_ANTONIO || "U0BAU7N7ZSA", github: "antoniorivero-edibs" };
-const ANGEL: Dev = { slack: process.env.SLACK_DEV_ANGEL || "U0BC1RE5NUT", github: "adominguez-edibs" };
+const ANTONIO: Dev = { slack: process.env.SLACK_DEV_ANTONIO || "U0BAU7N7ZSA", github: "antoniorivero-edibs", nombre: "Antonio Rivero" };
+const ANGEL: Dev = { slack: process.env.SLACK_DEV_ANGEL || "U0BC1RE5NUT", github: "adominguez-edibs", nombre: "Ángel Martín" };
 
 // Overrides opcionales de alias por repo. Por defecto el alias sale del nombre del repo.
 // Añadir aquí solo cuando el nombre del repo no sea suficientemente claro.
@@ -33,9 +33,14 @@ const DEVS_POR_DEFECTO: Dev[] = [ANTONIO, ANGEL];
 const EQUIPO: Dev[] = [ANTONIO, ANGEL];
 
 // A partir del ID de Slack de quien pulsa, devuelve su usuario de GitHub (o null si no
-// está en el equipo). Así solo Antonio y Ángel pueden autoasignarse una sugerencia.
+// está en el equipo). Así solo el equipo puede autoasignarse un bug o sugerencia.
 export function githubDeSlack(slackId: string): string | null {
   return EQUIPO.find((d) => d.slack === slackId)?.github ?? null;
+}
+
+// Nombre real a partir del usuario de GitHub (para el hover del panel). Cae al propio login.
+export function nombreDeGithub(github: string): string {
+  return EQUIPO.find((d) => d.github === github)?.nombre ?? github;
 }
 
 // Deriva un alias legible a partir del nombre del repo si no hay override.

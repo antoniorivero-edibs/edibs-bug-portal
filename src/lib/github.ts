@@ -95,10 +95,11 @@ export async function comentarIssue(repo: string, numero: number, cuerpo: string
   return data.html_url;
 }
 
-// Asigna un usuario de GitHub a un issue (usado por el botón "Me la quedo" de Slack).
-export async function asignarIssue(repo: string, numero: number, usuario: string): Promise<void> {
+// Reasigna un issue a un único usuario (usado por el botón "Me encargo" de Slack).
+// Reemplaza la lista de asignados: en bugs, esto quita al otro dev y deja solo a quien pulsa.
+export async function reasignarIssue(repo: string, numero: number, usuario: string): Promise<void> {
   const octokit = octokitApp();
-  await octokit.rest.issues.addAssignees({
+  await octokit.rest.issues.update({
     owner: env.githubOrg(),
     repo,
     issue_number: numero,
