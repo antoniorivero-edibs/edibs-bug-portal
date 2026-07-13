@@ -99,14 +99,14 @@ function Asignado({ bug }: { bug: BugPanel }) {
   const nombre = nombreDeGithub(bug.asignado_github);
   const respaldo = bug.asignado_slack_avatar;
   return (
-    <div className="flex items-center gap-2">
+    <div className="flex items-center gap-2 whitespace-nowrap">
       {/* eslint-disable-next-line @next/next/no-img-element -- avatar pequeño externo, no vale next/image */}
       <img
         src={`https://github.com/${bug.asignado_github}.png?size=48`}
         alt={nombre}
         title={nombre}
         onError={respaldo ? (e) => { (e.currentTarget as HTMLImageElement).src = respaldo; } : undefined}
-        className="h-7 w-7 rounded-full border border-[var(--color-borde)] bg-[var(--color-surface-soft)] object-cover"
+        className="h-7 w-7 shrink-0 rounded-full border border-[var(--color-borde)] bg-[var(--color-surface-soft)] object-cover"
       />
       <span className="text-xs font-medium text-[var(--color-texto)]">{nombre}</span>
     </div>
