@@ -90,9 +90,8 @@ export default async function PanelPage({
   const iaOn = iaConfigurada();
 
   return (
-    // El panel rompe el ancho del layout (3xl) para dar sitio a las tablas.
-    <div className="mx-[calc(50%-50vw)] w-screen px-5">
-      <div className="mx-auto max-w-[1600px]">
+    // El ancho (1600px en /admin) lo da AppShell; aquí solo el contenido.
+    <div>
       <div className="mb-6 flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-[var(--color-navy)]">Panel de bugs</h1>
@@ -119,7 +118,6 @@ export default async function PanelPage({
           <BugsCliente key="s" bugs={sugerencias} iaOn={iaOn} modo="sugerencia" />,
         ]}
       />
-      </div>
     </div>
   );
 }
