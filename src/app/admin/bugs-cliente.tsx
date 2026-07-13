@@ -91,23 +91,32 @@ function fechaHora(iso: string): string {
   }
 }
 
-// Muestra quién se encarga: una foto (GitHub, con Slack como respaldo) y el nombre.
+// Muestra quién se encarga: avatar de GitHub + avatar de Slack (hover indica cada fuente) y el nombre.
 function Asignado({ bug }: { bug: BugPanel }) {
   if (!bug.asignado_github) {
     return <span className={`${CHIP} bg-amber-100 text-amber-700`}>sin asignar</span>;
   }
   const nombre = nombreDeGithub(bug.asignado_github);
-  const respaldo = bug.asignado_slack_avatar;
   return (
     <div className="flex items-center gap-2 whitespace-nowrap">
-      {/* eslint-disable-next-line @next/next/no-img-element -- avatar pequeño externo, no vale next/image */}
-      <img
-        src={`https://github.com/${bug.asignado_github}.png?size=48`}
-        alt={nombre}
-        title={nombre}
-        onError={respaldo ? (e) => { (e.currentTarget as HTMLImageElement).src = respaldo; } : undefined}
-        className="h-7 w-7 shrink-0 rounded-full border border-[var(--color-borde)] bg-[var(--color-surface-soft)] object-cover"
-      />
+      <div className="flex shrink-0 -space-x-2">
+        {/* eslint-disable-next-line @next/next/no-img-element -- avatar pequeño externo, no vale next/image */}
+        <img
+          src={`https://github.com/${bug.asignado_github}.png?size=48`}
+          alt={`${nombre} (GitHub)`}
+          title={`${nombre} · GitHub`}
+          className="h-7 w-7 rounded-full border-2 border-white bg-[var(--color-surface-soft)] object-cover"
+        />
+        {bug.asignado_slack_avatar && (
+          // eslint-disable-next-line @next/next/no-img-element -- avatar pequeño externo, no vale next/image
+          <img
+            src={bug.asignado_slack_avatar}
+            alt={`${nombre} (Slack)`}
+            title={`${nombre} · Slack`}
+            className="h-7 w-7 rounded-full border-2 border-white bg-[var(--color-surface-soft)] object-cover"
+          />
+        )}
+      </div>
       <span className="text-xs font-medium text-[var(--color-texto)]">{nombre}</span>
     </div>
   );

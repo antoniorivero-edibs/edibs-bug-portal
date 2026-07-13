@@ -92,7 +92,7 @@ export default async function PanelPage({
   return (
     // El panel rompe el ancho del layout (3xl) para dar sitio a las tablas.
     <div className="mx-[calc(50%-50vw)] w-screen px-5">
-      <div className="mx-auto max-w-5xl">
+      <div className="mx-auto max-w-[1600px]">
       <div className="mb-6 flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-[var(--color-navy)]">Panel de bugs</h1>
