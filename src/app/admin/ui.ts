@@ -1,7 +1,7 @@
 // Clases compartidas del panel para que Productos y Bugs tengan un estilo idéntico y consistente.
 
 export const TABLA_WRAP =
-  "overflow-hidden rounded-[var(--radius-card)] border border-[var(--color-borde)] bg-white shadow-[var(--edibs-shadow)]";
+  "overflow-x-auto rounded-[var(--radius-card)] border border-[var(--color-borde)] bg-white shadow-[var(--edibs-shadow)]";
 export const TABLA = "w-full border-collapse text-sm";
 export const THEAD = "bg-[var(--color-navy-deep)]";
 export const TH = "px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-white/70";
