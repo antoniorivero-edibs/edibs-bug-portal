@@ -188,22 +188,27 @@ export async function investigarRepo(
       thinking: { type: "adaptive" },
       output_config: { effort: "medium" },
       system:
-        "Eres un ingeniero senior. A partir de un reporte de bug y el contenido de unos ficheros del repo, " +
-        "acotas la causa probable y señalas las zonas concretas (fichero, función o líneas) donde mirar. " +
-        "Objetivo: que otro dev con Claude Code retome el issue con la mayor parte del camino hecho. " +
-        "Sé concreto y honesto: si no estás seguro, dilo. " +
-        "Responde en español y en Markdown BIEN ESPACIADO: una línea en blanco entre secciones y entre viñetas. " +
-        "Sin preámbulos. " +
+        "Eres un ingeniero senior que ayuda a acotar un reporte. IMPORTANTE: solo ves un EXTRACTO de unos pocos " +
+        "ficheros (a veces cortados), no el repo completo, así que razona con cautela. " +
+        "Distingue siempre entre lo que se OBSERVA en el código mostrado y lo que es una SUPOSICIÓN. No afirmes una " +
+        "causa como segura si no hay evidencia clara en lo que ves; si es una hipótesis, dilo y da un nivel de confianza. " +
+        "Considera explícitamente que el reporte PODRÍA NO SER UN BUG: puede ser comportamiento esperado, algo " +
+        "visual o de estilo, de configuración, o de permisos/datos legítimos (p. ej. RLS entregando filas como debe), " +
+        "o simplemente no reproducible con la info dada. " +
+        "No inventes mecanismos concretos (condiciones de carrera, filtros que fallan, etc.) sin una señal real en los ficheros. " +
+        "Objetivo: dar pistas útiles para que otro dev retome el issue, sin despistar con certezas infundadas. " +
+        "Responde en español y en Markdown BIEN ESPACIADO (línea en blanco entre secciones y viñetas). Sin preámbulos. " +
         `Enlaza cada fichero como [ruta](${base}ruta).`,
       messages: [
         {
           role: "user",
           content:
-            `${contextoBug}\n\nContenido de los ficheros candidatos:\n\n${contenidos.join("\n\n")}\n\n` +
-            "Devuelve el análisis con estas tres secciones, cada una con su encabezado `###` y una línea en blanco entre secciones:\n\n" +
-            "### 🎯 Causa probable\n(explicación concreta)\n\n" +
+            `${contextoBug}\n\nContenido (solo un extracto) de los ficheros candidatos:\n\n${contenidos.join("\n\n")}\n\n` +
+            "Devuelve el análisis con estas secciones, cada una con su encabezado `###` y una línea en blanco entre secciones:\n\n" +
+            "### 🎯 Valoración\n(¿parece un bug de código, o podría ser comportamiento esperado / visual / de configuración / de permisos-datos legítimos / no reproducible? Sé honesto.)\n\n" +
+            "### 🔍 Causa probable · confianza: alta / media / baja\n(hipótesis basada SOLO en lo que ves; separa hechos de suposiciones; si no hay evidencia suficiente, dilo claramente)\n\n" +
             "### 📂 Ficheros / áreas candidatas\n(una viñeta por fichero, con enlace y qué revisar; línea en blanco entre viñetas)\n\n" +
-            "### 🛠️ Para el dev\n(pistas para continuar y qué verificar)",
+            "### 🛠️ Para el dev\n(qué verificar y siguientes pasos)",
         },
       ],
     });

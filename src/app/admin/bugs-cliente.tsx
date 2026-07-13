@@ -1,6 +1,8 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { nombreDeGithub } from "@/lib/products";
 import { TABLA_WRAP, TABLA, THEAD, TH, TD, TR, BTN_SECUNDARIO, CHIP } from "./ui";
 
 type Adjunto = { nombre: string; url: string; tipo: "imagen" | "video" };
@@ -15,6 +17,8 @@ export type BugPanel = {
   reporter_nombre: string | null;
   reporter_slack_id: string | null;
   asignado_github: string | null;
+  asignado_slack: string | null;
+  asignado_slack_avatar: string | null;
   issue_url: string;
   descripcion: string | null;
   adjuntos: Adjunto[];
@@ -87,6 +91,37 @@ function fechaHora(iso: string): string {
   }
 }
 
+// Muestra quién se encarga: avatar de GitHub + avatar de Slack (hover indica cada fuente) y el nombre.
+function Asignado({ bug }: { bug: BugPanel }) {
+  if (!bug.asignado_github) {
+    return <span className={`${CHIP} bg-amber-100 text-amber-700`}>sin asignar</span>;
+  }
+  const nombre = nombreDeGithub(bug.asignado_github);
+  return (
+    <div className="flex items-center gap-2 whitespace-nowrap">
+      <div className="flex shrink-0 -space-x-2">
+        {/* eslint-disable-next-line @next/next/no-img-element -- avatar pequeño externo, no vale next/image */}
+        <img
+          src={`https://github.com/${bug.asignado_github}.png?size=48`}
+          alt={`${nombre} (GitHub)`}
+          title={`${nombre} · GitHub`}
+          className="h-7 w-7 rounded-full border-2 border-white bg-[var(--color-surface-soft)] object-cover"
+        />
+        {bug.asignado_slack_avatar && (
+          // eslint-disable-next-line @next/next/no-img-element -- avatar pequeño externo, no vale next/image
+          <img
+            src={bug.asignado_slack_avatar}
+            alt={`${nombre} (Slack)`}
+            title={`${nombre} · Slack`}
+            className="h-7 w-7 rounded-full border-2 border-white bg-[var(--color-surface-soft)] object-cover"
+          />
+        )}
+      </div>
+      <span className="text-xs font-medium text-[var(--color-texto)]">{nombre}</span>
+    </div>
+  );
+}
+
 export default function BugsCliente({
   bugs,
   iaOn,
@@ -96,6 +131,7 @@ export default function BugsCliente({
   iaOn: boolean;
   modo?: "bug" | "sugerencia";
 }) {
+  const router = useRouter();
   const [detalle, setDetalle] = useState<BugPanel | null>(null);
   const esSug = modo === "sugerencia";
 
@@ -108,7 +144,13 @@ export default function BugsCliente({
   }
 
   return (
-    <div className={TABLA_WRAP}>
+    <div>
+      <div className="mb-3 flex justify-end">
+        <button onClick={() => router.refresh()} className={BTN_SECUNDARIO} title="Recargar los datos sin recargar la página">
+          ↻ Actualizar
+        </button>
+      </div>
+      <div className={TABLA_WRAP}>
       <table className={TABLA}>
         <thead className={THEAD}>
           <tr>
@@ -118,7 +160,8 @@ export default function BugsCliente({
             <th className={TH}>{esSug ? "Sugiere" : "Reporta"}</th>
             <th className={TH}>Fecha</th>
             <th className={TH}>Slack</th>
-            <th className={TH}>{esSug ? "Asignada a" : "Análisis IA"}</th>
+            {!esSug && <th className={TH}>Análisis IA</th>}
+            <th className={TH}>Asignado a</th>
             <th className={TH}>Issue</th>
             <th className={TH}></th>
           </tr>
@@ -148,26 +191,16 @@ export default function BugsCliente({
                   <span className={`${CHIP} bg-[var(--color-surface-soft)] text-[var(--color-texto-muted)]`}>—</span>
                 )}
               </td>
-              <td className={TD}>
-                {esSug ? (
-                  b.asignado_github ? (
-                    <a
-                      href={`https://github.com/${b.asignado_github}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className={`${CHIP} bg-green-100 text-green-700`}
-                    >
-                      {b.asignado_github} ✓
-                    </a>
-                  ) : (
-                    <span className={`${CHIP} bg-amber-100 text-amber-700`}>sin asignar</span>
-                  )
-                ) : (
+              {!esSug && (
+                <td className={TD}>
                   <div className="flex flex-wrap gap-1">
                     <ChipIA label="Triaje" done={b.ia_triaje} url={b.ia_triaje_url} iaOn={iaOn} />
                     <ChipIA label="Investigación" done={b.ia_investigacion} url={b.ia_investigacion_url} iaOn={iaOn} />
                   </div>
-                )}
+                </td>
+              )}
+              <td className={TD}>
+                <Asignado bug={b} />
               </td>
               <td className={`${TD} whitespace-nowrap`}>
                 <a
@@ -189,6 +222,7 @@ export default function BugsCliente({
       </table>
 
       {detalle && <DetalleBug bug={detalle} onCerrar={() => setDetalle(null)} />}
+      </div>
     </div>
   );
 }

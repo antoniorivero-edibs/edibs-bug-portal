@@ -79,7 +79,7 @@ export default async function PanelPage({
   const { data: reportesData, error: errorBugs } = await admin
     .from("reportes")
     .select(
-      "repo, issue_number, tipo, titulo, estado, reporter_email, reporter_nombre, reporter_slack_id, asignado_github, issue_url, descripcion, adjuntos, navegador, url_origen, slack_permalink, ia_triaje, ia_investigacion, ia_triaje_url, ia_investigacion_url, creado_en"
+      "repo, issue_number, tipo, titulo, estado, reporter_email, reporter_nombre, reporter_slack_id, asignado_github, asignado_slack, asignado_slack_avatar, issue_url, descripcion, adjuntos, navegador, url_origen, slack_permalink, ia_triaje, ia_investigacion, ia_triaje_url, ia_investigacion_url, creado_en"
     )
     .order("creado_en", { ascending: false })
     .limit(300);
@@ -90,9 +90,8 @@ export default async function PanelPage({
   const iaOn = iaConfigurada();
 
   return (
-    // El panel rompe el ancho del layout (3xl) para dar sitio a las tablas.
-    <div className="mx-[calc(50%-50vw)] w-screen px-5">
-      <div className="mx-auto max-w-5xl">
+    // El ancho (1600px en /admin) lo da AppShell; aquí solo el contenido.
+    <div>
       <div className="mb-6 flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-[var(--color-navy)]">Panel de bugs</h1>
@@ -119,7 +118,6 @@ export default async function PanelPage({
           <BugsCliente key="s" bugs={sugerencias} iaOn={iaOn} modo="sugerencia" />,
         ]}
       />
-      </div>
     </div>
   );
 }

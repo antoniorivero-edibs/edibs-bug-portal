@@ -3,7 +3,7 @@ import { crearClienteAdmin } from "@/lib/supabase/admin";
 import { emailPermitido } from "@/lib/domains";
 import { crearIssue, comentarIssue, aplicarLabels } from "@/lib/github";
 import { esProductoValido } from "@/lib/productos-db";
-import { avisarNuevoBug, avisarNuevaSugerencia, buscarSlackPorEmail, responderEnHilo, mdASlack } from "@/lib/slack";
+import { avisarNuevoReporte, buscarSlackPorEmail, responderEnHilo, mdASlack } from "@/lib/slack";
 import { triajeBug, investigarRepo, iaConfigurada } from "@/lib/ai";
 import { LABEL_PORTAL } from "@/lib/products";
 import {
@@ -114,10 +114,11 @@ export async function POST(request: NextRequest) {
   // y guardar su ID (enlace a DM en el panel).
   const reporterSlack = await buscarSlackPorEmail(reporter.email);
 
-  // 7. Avisar en Slack. Bug: aviso con menciones. Sugerencia: aviso sin mención, con botón "Me la quedo".
+  // 7. Avisar en Slack. Bug: menciona a los devs. Sugerencia: sin mención. Ambos con botón "Me encargo".
   let slack: { channel: string; ts: string; permalink: string | null } | null = null;
   try {
-    const comun = {
+    slack = await avisarNuevoReporte({
+      tipo,
       producto: producto.nombre,
       tituloIssue: titulo,
       urlIssue: issue.url,
@@ -126,10 +127,10 @@ export async function POST(request: NextRequest) {
       reporter: reporter.nombre,
       reporterEmail: reporter.email,
       reporterSlackId: reporterSlack?.id ?? null,
-    };
-    slack = esSugerencia
-      ? await avisarNuevaSugerencia({ ...comun, repo, issueNumber: issue.numero })
-      : await avisarNuevoBug({ ...comun, devsSlack: producto.devsSlack });
+      repo,
+      issueNumber: issue.numero,
+      devsSlack: esSugerencia ? [] : producto.devsSlack,
+    });
   } catch (err) {
     console.error("Error avisando en Slack:", err);
   }
