@@ -25,6 +25,9 @@ export type MetaReporte = {
   fecha: string; // ISO
   navegador: string; // user agent
   urlOrigen: string; // desde dónde se reporta
+  // App que envía el reporte (ej. "Metriks"). Solo llega por la vía de confianza
+  // (llamada de servidor a servidor); desde el navegador va vacío.
+  origenApp?: string;
 };
 
 // Límites de adjuntos (issue #5).
@@ -90,17 +93,22 @@ export function construirCuerpoIssue(
   }
 
   // Metadatos del reporte, en tabla para que se lea limpio.
+  // "Reportado desde" solo aparece si el reporte llega de otra app (vía de confianza).
   partes.push("## Datos del reporte");
-  partes.push(
-    [
-      "| | |",
-      "|---|---|",
-      `| **Reportado por** | ${reporter.nombre} (${reporter.email}) |`,
-      `| **Fecha** | ${meta.fecha} |`,
-      `| **Origen** | ${meta.urlOrigen} |`,
-      `| **Navegador** | ${meta.navegador} |`,
-    ].join("\n")
+  const filas = [
+    "| | |",
+    "|---|---|",
+    `| **Reportado por** | ${reporter.nombre} (${reporter.email}) |`,
+  ];
+  if (meta.origenApp) {
+    filas.push(`| **Reportado desde** | ${meta.origenApp} |`);
+  }
+  filas.push(
+    `| **Fecha** | ${meta.fecha} |`,
+    `| **Origen** | ${meta.urlOrigen} |`,
+    `| **Navegador** | ${meta.navegador} |`
   );
+  partes.push(filas.join("\n"));
 
   return partes.join("\n\n");
 }
