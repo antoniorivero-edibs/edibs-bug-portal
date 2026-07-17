@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { crearClienteAdmin } from "@/lib/supabase/admin";
 import { emailPermitido } from "@/lib/domains";
+import { autenticarLlamada } from "@/lib/api-auth";
 import { esProductoValido } from "@/lib/productos-db";
 import {
   tipoPorNombre,
@@ -11,13 +12,24 @@ import {
 
 const BUCKET = "adjuntos";
 
-// Emite URLs de subida firmadas para que el navegador suba los adjuntos directo a Storage
+// Emite URLs de subida firmadas para que quien reporta suba los adjuntos directo a Storage
 // (esquiva el límite de tamaño de las funciones) sin abrir el bucket a cualquiera.
+// Dos vías (ver @/lib/api-auth): navegador (campo `email`) o llamada de confianza con
+// secreto, que además puede mandar la identidad en `reporter`.
 export async function POST(request: NextRequest) {
+  // Con cabecera inválida (o sin secreto configurado) no se sigue.
+  const auth = autenticarLlamada(request);
+  if (auth.tipo === "rechazada") {
+    return NextResponse.json({ error: "Secreto no válido." }, { status: 401 });
+  }
+  const esConfianza = auth.tipo === "confianza";
+
   let body: {
     repo?: string;
     email?: string;
     archivos?: { nombre: string; tamano: number }[];
+    reporter?: { nombre?: string; email?: string };
+    origen_app?: string;
   };
   try {
     body = await request.json();
@@ -25,8 +37,10 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Cuerpo inválido." }, { status: 400 });
   }
 
-  // Gate por dominio (el correo lo declara el cliente; no hay login).
-  if (!emailPermitido(body.email)) {
+  // El dominio se valida en las dos vías (defensa en profundidad): en la de confianza
+  // el correo puede venir en `reporter`, en la web sigue llegando en `email`.
+  const email = esConfianza ? (body.reporter?.email ?? body.email) : body.email;
+  if (!emailPermitido(email)) {
     return NextResponse.json({ error: "Correo no permitido." }, { status: 403 });
   }
 
@@ -65,7 +79,20 @@ export async function POST(request: NextRequest) {
     if (error || !data) {
       return NextResponse.json({ error: "No se pudo preparar la subida." }, { status: 502 });
     }
-    urls.push({ nombre, tipo: tipoPorNombre(nombre), path: data.path, token: data.token });
+    // `path` y `token` los usa el navegador del portal con su propio cliente de
+    // Supabase (uploadToSignedUrl). Los llamantes externos (otra app, otro
+    // proyecto de Supabase) no pueden usarlos, asi que devolvemos ademas las
+    // URLs absolutas: `signedUrl` para subir con un PUT plano y `publicUrl`
+    // para referenciar el adjunto ya subido.
+    const { data: publica } = admin.storage.from(BUCKET).getPublicUrl(path);
+    urls.push({
+      nombre,
+      tipo: tipoPorNombre(nombre),
+      path: data.path,
+      token: data.token,
+      signedUrl: data.signedUrl,
+      publicUrl: publica.publicUrl,
+    });
   }
 
   return NextResponse.json({ urls });
