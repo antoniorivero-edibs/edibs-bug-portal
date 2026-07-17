@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest, after } from "next/server";
 import { crearClienteAdmin } from "@/lib/supabase/admin";
 import { emailPermitido } from "@/lib/domains";
+import { autenticarLlamada } from "@/lib/api-auth";
 import { crearIssue, comentarIssue, aplicarLabels } from "@/lib/github";
 import { esProductoValido } from "@/lib/productos-db";
 import { avisarNuevoReporte, buscarSlackPorEmail, responderEnHilo, mdASlack } from "@/lib/slack";
@@ -17,9 +18,19 @@ import {
 
 // Crea el reporte de punta a punta: crea el issue, avisa en Slack y guarda el mapeo
 // (repo + issue -> canal + ts) para poder marcarlo resuelto al cerrar.
-// Sin login: la identidad (nombre + correo) la declara el cliente y se valida por dominio.
+// Dos vías (ver @/lib/api-auth):
+// - Web: sin login, la identidad (nombre + correo) la declara el cliente y se valida por dominio.
+// - Confianza: llamada de servidor a servidor con secreto; la identidad ya viene verificada
+//   por quien llama, pero el dominio se sigue validando igual.
 export async function POST(request: NextRequest) {
-  // 1. Cuerpo de la petición.
+  // 1. Vía de entrada. Con cabecera inválida (o sin secreto configurado) no se sigue.
+  const auth = autenticarLlamada(request);
+  if (auth.tipo === "rechazada") {
+    return NextResponse.json({ error: "Secreto no válido." }, { status: 401 });
+  }
+  const esConfianza = auth.tipo === "confianza";
+
+  // 2. Cuerpo de la petición. `origen_app` solo se lee en la vía de confianza.
   let body: {
     repo?: string;
     tipo?: string;
@@ -28,6 +39,7 @@ export async function POST(request: NextRequest) {
     adjuntos?: Adjunto[];
     reporter?: { nombre?: string; email?: string };
     urlOrigen?: string;
+    origen_app?: string;
   };
   try {
     body = await request.json();
@@ -39,11 +51,19 @@ export async function POST(request: NextRequest) {
   const tipo = esTipoReporte(body.tipo) ? body.tipo : "bug";
   const esSugerencia = tipo === "sugerencia";
 
-  // 2. Identidad: gate por dominio (no hay sesión).
+  // 3. Identidad. En la vía de confianza el reporter ya viene verificado por quien llama,
+  //    pero el dominio se valida igual en las dos vías (defensa en profundidad).
   const nombreReporter = (body.reporter?.nombre ?? "").trim();
   const emailReporter = (body.reporter?.email ?? "").trim().toLowerCase();
   if (!nombreReporter || !emailPermitido(emailReporter)) {
-    return NextResponse.json({ error: "Identifícate con tu correo de EDIBS." }, { status: 403 });
+    return NextResponse.json(
+      {
+        error: esConfianza
+          ? "Reporter no válido: hacen falta nombre y correo de un dominio permitido."
+          : "Identifícate con tu correo de EDIBS.",
+      },
+      { status: 403 }
+    );
   }
   const reporter = { nombre: nombreReporter, email: emailReporter };
 
@@ -56,13 +76,13 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Título o descripción demasiado cortos." }, { status: 400 });
   }
 
-  // 3. El repo tiene que ser un producto válido (topic bug-portal).
+  // 4. El repo tiene que ser un producto válido (topic bug-portal).
   const producto = await esProductoValido(repo);
   if (!producto) {
     return NextResponse.json({ error: "Producto no válido." }, { status: 400 });
   }
 
-  // 4. Revalidación de adjuntos en servidor (no fiarse solo del cliente).
+  // 5. Revalidación de adjuntos en servidor (no fiarse solo del cliente).
   if (adjuntos.length > MAX_ADJUNTOS) {
     return NextResponse.json({ error: `Máximo ${MAX_ADJUNTOS} adjuntos.` }, { status: 400 });
   }
@@ -75,15 +95,18 @@ export async function POST(request: NextRequest) {
     }
   }
 
-  // 5. Crear el issue en GitHub.
+  // 6. Crear el issue en GitHub.
   //    Bug: asignado a los devs. Sugerencia: sin asignar (se autoasigna con el botón de Slack).
   const navegador = request.headers.get("user-agent") ?? "desconocido";
   const urlOrigen = body.urlOrigen ?? "-";
+  // La app de origen solo se acepta por la vía de confianza: desde el navegador cualquiera
+  // podría inventarse el valor y no aportaría nada fiable.
+  const origenApp = esConfianza ? (body.origen_app ?? "").trim() : "";
   const cuerpo = construirCuerpoIssue(
     descripcion,
     adjuntos,
     reporter,
-    { fecha: new Date().toISOString(), navegador, urlOrigen },
+    { fecha: new Date().toISOString(), navegador, urlOrigen, origenApp },
     tipo
   );
 
@@ -102,7 +125,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "No se pudo crear el issue en GitHub." }, { status: 502 });
   }
 
-  // 6. Label base del portal (igual para bug y sugerencia). El tipo va como issue type,
+  // 7. Label base del portal (igual para bug y sugerencia). El tipo va como issue type,
   //    no como label. Las labels de categoría las añade Claude en el triaje (solo bugs).
   try {
     await aplicarLabels(repo, issue.numero, [LABEL_PORTAL]);
@@ -114,7 +137,7 @@ export async function POST(request: NextRequest) {
   // y guardar su ID (enlace a DM en el panel).
   const reporterSlack = await buscarSlackPorEmail(reporter.email);
 
-  // 7. Avisar en Slack. Bug: menciona a los devs. Sugerencia: sin mención. Ambos con botón "Me encargo".
+  // 8. Avisar en Slack. Bug: menciona a los devs. Sugerencia: sin mención. Ambos con botón "Me encargo".
   let slack: { channel: string; ts: string; permalink: string | null } | null = null;
   try {
     slack = await avisarNuevoReporte({
@@ -135,7 +158,7 @@ export async function POST(request: NextRequest) {
     console.error("Error avisando en Slack:", err);
   }
 
-  // 8. Guardar el mapeo en la tabla reportes (con service role).
+  // 9. Guardar el mapeo en la tabla reportes (con service role).
   // insert() no lanza: devuelve { error }. Hay que comprobarlo explícitamente.
   try {
     const admin = crearClienteAdmin();
@@ -161,7 +184,7 @@ export async function POST(request: NextRequest) {
     console.error("Error guardando el reporte:", err);
   }
 
-  // 9. Análisis con IA en segundo plano (solo bugs; una sugerencia no se investiga).
+  // 10. Análisis con IA en segundo plano (solo bugs; una sugerencia no se investiga).
   //    Se publican DOS comentarios por orden de importancia, según van terminando:
   //    (1) triaje (resumen + severidad + categoría, aplica labels), (2) investigación del repo.
   if (!esSugerencia && iaConfigurada()) {
