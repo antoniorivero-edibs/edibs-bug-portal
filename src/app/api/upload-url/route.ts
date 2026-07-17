@@ -79,7 +79,20 @@ export async function POST(request: NextRequest) {
     if (error || !data) {
       return NextResponse.json({ error: "No se pudo preparar la subida." }, { status: 502 });
     }
-    urls.push({ nombre, tipo: tipoPorNombre(nombre), path: data.path, token: data.token });
+    // `path` y `token` los usa el navegador del portal con su propio cliente de
+    // Supabase (uploadToSignedUrl). Los llamantes externos (otra app, otro
+    // proyecto de Supabase) no pueden usarlos, asi que devolvemos ademas las
+    // URLs absolutas: `signedUrl` para subir con un PUT plano y `publicUrl`
+    // para referenciar el adjunto ya subido.
+    const { data: publica } = admin.storage.from(BUCKET).getPublicUrl(path);
+    urls.push({
+      nombre,
+      tipo: tipoPorNombre(nombre),
+      path: data.path,
+      token: data.token,
+      signedUrl: data.signedUrl,
+      publicUrl: publica.publicUrl,
+    });
   }
 
   return NextResponse.json({ urls });
