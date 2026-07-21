@@ -104,7 +104,7 @@ function FormularioIdentidad({ onListo }: { onListo: (r: Reporter) => void }) {
           <button
             type="submit"
             disabled={enviando}
-            className="w-full rounded-[var(--radius-pill)] bg-[var(--color-navy)] px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-[var(--color-navy-deep)] disabled:opacity-60"
+            className="w-full rounded-[var(--radius-pill)] bg-[var(--color-action)] px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-[var(--color-action-hover)] disabled:opacity-60"
           >
             {enviando ? "Entrando..." : "Entrar"}
           </button>
