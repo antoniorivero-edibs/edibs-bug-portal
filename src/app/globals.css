@@ -4,8 +4,12 @@
 :root {
   --edibs-navy: #002f6d;
   --edibs-navy-deep: #001735;
-  --edibs-action: #4189ff;
-  --edibs-action-hover: #3b78f0;
+  /* El color de acción es el propio navy de marca: mantenemos un único azul en toda la
+     interfaz (botones, hovers y focos) para no romper la consistencia visual.
+     Si algún día se quiere recuperar un azul de acento distinto, basta con cambiar
+     estos dos valores (antes: #4189ff y #3b78f0). */
+  --edibs-action: #002f6d;
+  --edibs-action-hover: #001735;
   --edibs-surface-soft: #f0f3ff;
   --edibs-surface-strong: #e7ecff;
   --edibs-white: #ffffff;
