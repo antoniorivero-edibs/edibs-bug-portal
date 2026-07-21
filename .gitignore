@@ -20,3 +20,6 @@ dist
 # Supabase (temporales y credenciales locales)
 supabase/.temp
 supabase/.branches
+
+# Cache de compilación de TypeScript
+tsconfig.tsbuildinfo
